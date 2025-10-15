@@ -1,0 +1,29 @@
+{
+    "locale.en": "English",
+    "locale.zh-hans": "Chninese",
+
+    "login.title": "Construction Collaboration",
+    "login.account": "account",
+    "login.password": "password",
+    "login.login": "Login",
+    "login.emptyMsg": "Please enter account & password",
+
+    "common.home": "Projects",
+    "common.loading": "加载中...",
+    "common.no-more": "没有更多了",
+    "common.refresh": "下拉刷新",
+    "common.quanbu": "全部",
+    "common.weiqidong": "未启动",
+    "common.shigongzhong": "施工中",
+    "common.yanshouzhong": "验收中",
+    "common.yiwancheng": "已完成",
+
+    "requirement.title": "Requirements",
+
+    "mine.title": "Mine",
+
+    "api.message": "提示",
+    "schema.name": "姓名",
+    "schema.add": "新增",
+    "schema.add-success": "新增成功"
+}

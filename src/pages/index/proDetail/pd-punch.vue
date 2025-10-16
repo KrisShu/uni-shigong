@@ -1,8 +1,9 @@
+<!-- 打卡tab页 -->
 <template>
     <view class="pd-punch">
         <view class="pd-punch-wrap">
             <!-- 签到 -->
-            <view class="punch-wrap" :class="{ disabled: signIned }">
+            <view class="punch-wrap" :class="{ disabled: signIned }" @click="handleSignIn">
                 <view class="title-text">{{ $t('staff.pro.clock_in.key_SGQD') }}</view>
                 <view class="clock-time"> （{{ signInTime }}）</view>
                 <view class="punch-btn">
@@ -10,7 +11,7 @@
                 </view>
             </view>
             <!-- 签退 -->
-            <view class="punch-wrap" :class="{ disabled: signOuted }">
+            <view class="punch-wrap" :class="{ disabled: signOuted }" @click="handleSignOut">
                 <view class="title-text">{{ $t('staff.pro.clock_in.key_SGQT') }}</view>
                 <view class="clock-time"> （{{ signOutTime }}）</view>
                 <view class="punch-btn">
@@ -21,11 +22,30 @@
         <!-- 历史打卡记录 -->
         <view class="pd-punch-history">
             <view class="cap-title">{{ $t('common.pro.clock_in.key_history') }}</view>
-            <view class="history-wrap">
-                <view class="pd-punch-history__item" v-for="item in 2" :key="item">
+            <scroll-view
+                class="history-wrap"
+                scroll-y
+                :show-scrollbar="false"
+                :enhanced="true"
+                :enable-back-to-top="true"
+                @scrolltolower="onLoadMore"
+            >
+                <!-- 加载中 -->
+                <view v-if="loading && page === 1" class="loading-box">
+                    <text class="loading-icon">⏳</text>
+                    <text class="loading-text">{{ $t('common.loading') }}</text>
+                </view>
+
+                <!-- 数据为空 -->
+                <view v-else-if="!loading && historyList.length === 0" class="empty-box">
+                    <text class="empty-text">{{ $t('common.noData') }}</text>
+                </view>
+                <view v-else class="pd-punch-history__item" v-for="(item, index) in historyList" :key="index">
                     <view class="flex j-between a-center">
-                        <view class="pd-punch-history__time">2025-07-05</view>
-                        <view class="pd-punch-history__people"> {{ $t('common.pro.clock_in.key_DKR') }}：张三 </view>
+                        <view class="pd-punch-history__time">{{ item.clockDate }}</view>
+                        <view class="pd-punch-history__people">
+                            {{ $t('common.pro.clock_in.key_DKR') }}：{{ item.workerName }}
+                        </view>
                     </view>
                     <view class="flex j-between punch-images">
                         <view class="punch-image">
@@ -46,21 +66,100 @@
                         </view>
                     </view>
                 </view>
-            </view>
+            </scroll-view>
+            <!-- <view class="history-wrap"> </view> -->
         </view>
     </view>
 </template>
 
 <script lang="ts" setup>
-    import { ref, onMounted, onUnmounted } from 'vue';
-    // 打卡相关
+    import { ref, onMounted, onUnmounted, reactive } from 'vue';
+    import API from '@/apis/index';
+    import { i18n } from '@/main';
 
+    import { takePhoto, validateImage } from '@/utils/takePhoto';
+    import { uploadOne } from '@/utils/uploader';
+
+    const props = defineProps<{
+        projectId: string | number;
+    }>();
+
+    const recordData = reactive({});
+
+    // 打卡相关
+    const busy = ref(false);
     const signIned = ref(false);
     const signOuted = ref(false);
     const signInTime = ref('--:--:--');
     const signInTime_compelete = ref('');
     const signOutTime = ref('--:--:--');
     const signOutTime_compelete = ref('');
+
+    // 获取打卡记录回显数据
+    const fetchRecord = async () => {
+        try {
+            const res = await API.EMP_ProjectClockRecord({
+                id: props.projectId,
+            });
+            Object.assign(recordData, res.data);
+            signIned.value = res.data.clockIn;
+            signOuted.value = res.data.clockOut;
+            if (res.data.clockIn) {
+                // 如果已签到 那么显示签到时间
+                signInTime.value = res.data.clockInTime;
+            }
+            if (res.data.clockOut) {
+                // 如果已签退 那么显示签退时间
+                signOutTime.value = res.data.clockOutTime;
+            }
+
+            console.log('打卡记录res', res);
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+
+    const loadingText = ref('');
+    const page = ref(1);
+    const loading = ref(false); //
+    const hasMore = ref(true); // 新增：是否还有更多数据
+    const historyList = ref<any[]>([]);
+    // 获取历史打卡记录
+    const fetchHistory = async () => {
+        if (loading.value) return; // ✅ 防止重复加载
+        loading.value = true;
+        loadingText.value = i18n.global.t('common.loading');
+
+        try {
+            const res = await API.EMP_ProjectHistorySignInRecordList({
+                id: props.projectId,
+                pageNo: page.value,
+            });
+            const newData = res.data.list || [];
+
+            if (newData.length < res.data.pageSize) {
+                console.log('没有更多数据了');
+                hasMore.value = false;
+                loadingText.value = i18n.global.t('common.no-more');
+            } else {
+                console.log('上拉加载更多');
+                hasMore.value = true;
+                loadingText.value = i18n.global.t('common.release');
+            }
+            historyList.value.push(...newData);
+
+            console.log('历史打卡记录res', res);
+        } catch (error) {
+            console.log('error', error);
+        } finally {
+            loading.value = false;
+        }
+    };
+    const onLoadMore = () => {
+        if (!hasMore.value || loading.value) return;
+        page.value++;
+        fetchHistory();
+    };
 
     let timer: number;
 
@@ -82,11 +181,47 @@
         if (!signOuted.value) signOutTime.value = getNowTimeStr('HH:mm:ss');
     };
 
-    const handleSignIn = () => {
-        if (signIned.value) return;
-        signIned.value = true;
-        signInTime.value = getNowTimeStr('HH:mm:ss');
-        signInTime_compelete.value = getNowTimeStr();
+    const handleSignIn = async () => {
+        console.log('handleSignIn---signIned', signIned.value);
+        console.log('handleSignIn---busy', busy.value);
+        if (signIned.value || busy.value) return;
+
+        busy.value = true;
+        try {
+            // 1) 拍照
+            const photo = await takePhoto({ compressed: true });
+            console.log('photo======', photo);
+            if (photo === 'CANCEL') {
+                busy.value = false;
+                return;
+            }
+
+            // 2) 校验
+            validateImage(photo, { acceptExt: ['png', 'jpg', 'jpeg', 'webp'], maxMB: 10 });
+
+            // 3) 上传
+            uni.showLoading({ title: i18n.global.t('common.text.SCZ'), mask: true });
+            const remoteUrl = await uploadOne(photo.path); // 如需自定义 headers 等，传第二个参数
+            uni.hideLoading();
+            console.log('remoteUrl---------', remoteUrl);
+
+            // 4) 业务提交
+
+            signIned.value = true;
+            signInTime.value = getNowTimeStr('HH:mm:ss');
+            signInTime_compelete.value = getNowTimeStr();
+            await API.EMP_ProjectConstructionSignIn({
+                id: props.projectId,
+                clockTime: signInTime_compelete.value,
+                imgPath: remoteUrl,
+            });
+        } catch (error) {
+            console.log('error', error);
+            uni.hideLoading();
+            signIned.value = false;
+        } finally {
+            busy.value = false;
+        }
 
         console.log('signIned', signInTime.value, signInTime_compelete.value);
     };
@@ -97,6 +232,7 @@
     };
 
     onMounted(() => {
+        fetchRecord();
         updateClock();
         timer = setInterval(updateClock, 1000);
     });
@@ -107,6 +243,9 @@
 
 <style lang="scss">
     .pd-punch {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
         .pd-punch-wrap {
             display: flex;
             gap: 24rpx;
@@ -157,6 +296,11 @@
             }
         }
         .pd-punch-history {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+
             .cap-title {
                 font-weight: 600;
                 font-size: 32rpx;
@@ -168,6 +312,10 @@
                 background: #ffffff;
                 border-radius: 24rpx;
                 padding: 24rpx;
+                box-sizing: border-box;
+                flex: 1;
+                overflow: auto;
+
                 .pd-punch-history__item {
                     margin-bottom: 48rpx;
                     .pd-punch-history__time {

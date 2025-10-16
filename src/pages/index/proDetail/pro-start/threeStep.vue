@@ -8,23 +8,47 @@
             :accept-ext="['png', 'jpg', 'jpeg', 'webp']"
             @error="onError"
         />
+        <!-- 确认启动项目 -->
+        <view @click="sureNext" class="progress-btn">
+            {{ $t('staff.pro.start_step_3_btn') }}
+        </view>
     </view>
 </template>
 
 <script lang="ts" setup>
     import { ref } from 'vue';
     import ImageUploader from '@/components/ImageUploader/index.vue';
+    import API from '@/apis/index';
+    import { i18n } from '@/main';
+    const props = defineProps<{
+        projectId: string | number;
+    }>();
+
     // 已有图片（编辑态）
-    const imgs = ref<string[]>([]);
-    async function uploadToServer(localPath: string): Promise<string> {
-        console.log('上传中...', localPath);
-        // 先直接返回本地临时路径模拟
-        return localPath;
-    }
+    const imgs = ref<any[]>([]);
 
     function onError(msg: string) {
         uni.showToast({ title: msg, icon: 'none' });
     }
+
+    const sureNext = async () => {
+        if (!imgs.value.length) {
+            uni.showToast({ title: '请上传图片', icon: 'none' });
+            return;
+        }
+        const confirmPathArr = imgs.value.map(item => item.path);
+        try {
+            const res = await API.EMP_ProjectConfirmConstructionSite({
+                id: props.projectId,
+                confirmPath: confirmPathArr.join(','),
+            });
+            console.log('res', res);
+            uni.showToast({ title: i18n.global.t('common.status.success'), icon: 'success' });
+            uni.navigateBack();
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
 </script>
 
 <style lang="scss" scoped>
@@ -33,6 +57,20 @@
             font-weight: 600;
             font-size: 32rpx;
             color: #303133;
+            margin-bottom: 24rpx;
+        }
+        .progress-btn {
+            width: 90%;
+            background: #f7931e;
+            border-radius: 24rpx;
+            height: 88rpx;
+            line-height: 88rpx;
+            text-align: center;
+            font-weight: 600;
+            font-size: 28rpx;
+            color: #ffffff;
+            position: absolute;
+            bottom: 32rpx;
         }
     }
 </style>

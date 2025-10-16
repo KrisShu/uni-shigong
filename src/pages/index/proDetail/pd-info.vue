@@ -1,28 +1,36 @@
 <template>
     <view class="pd-section pd-info">
-        <view class="pd-card__title">3#3武侯区锦城大道600号打地基</view>
-        <view class="pd-card__address">武侯区锦城大道600号打地基</view>
+        <view class="pd-card__title">{{ projectDetails.name }}</view>
+        <view class="pd-card__address">{{ projectDetails.address }}</view>
         <!-- 项目卡片 -->
         <view class="pd-card">
             <!-- 使用车辆 -->
             <view class="pd-field">
-                <view class="pd-field__label">使用车辆：</view>
+                <view class="pd-field__label">{{ $t('common.pro.key_car') }}：</view>
                 <view class="pd-field__chips">
-                    <view class="pd-chip">叉车</view>
-                    <view class="pd-chip">挖掘机</view>
-                    <view class="pd-chip">运输车运输车运输车运输车运输车运输车</view>
+                    <view class="pd-chip">{{ projectDetails.hardwareNames }}</view>
                 </view>
             </view>
+            <!-- 参与人 -->
+            <view class="pd-field">
+                <view class="pd-field__label">{{ $t('staff.pro.key_person') }}：</view>
 
+                <view class="pd-field__chips people-list flex">
+                    <!-- 人员列表的第一个为项目发起人 -->
+                    <view v-for="(people, p) in workerNameArr" class="people-item" :class="p === 0 ? 'leader' : ''">
+                        {{ people }}
+                    </view>
+                </view>
+            </view>
             <!-- 预计工期 -->
             <view class="pd-field">
-                <view class="pd-field__label">预计工期：</view>
-                <view class="pd-field__value">0.5 天</view>
+                <view class="pd-field__label">{{ $t('common.pro.key_date') }}：</view>
+                <view class="pd-field__value">{{ projectDetails.period }}{{ $t('common.unit.day') }}</view>
             </view>
 
             <!-- 项目勘察图 -->
-            <view class="pd-field">
-                <view class="pd-field__label">项目勘察图：</view>
+            <view class="pd-field" v-if="images.length">
+                <view class="pd-field__label">{{ $t('common.pro.key_image') }}：</view>
                 <ImagePreview :images="images" />
             </view>
         </view>
@@ -31,9 +39,10 @@
             <view class="pd-card__title">{{ $t('common.pro.key_tip') }}</view>
 
             <view class="pd-list">
-                <view class="pd-list__item">注意两侧下管道</view>
+                <!-- <view class="pd-list__item">注意两侧下管道</view>
                 <view class="pd-list__item">注意高压线</view>
-                <view class="pd-list__item">注意桩孔深度</view>
+                <view class="pd-list__item">注意桩孔深度</view> -->
+                <view class="pd-list__item">{{ projectDetails.security }}</view>
             </view>
         </view>
     </view>
@@ -41,11 +50,32 @@
 
 <script lang="ts" setup>
     import ImagePreview from '@/components/ImagePreview/index.vue';
-    import { ref } from 'vue';
-    const images = ref([
-        'https://img.alicdn.com/tfs/TB1.o5DJFXXXXX9aXXXXXXXXXXX-1024-1024.png',
-        'https://img.alicdn.com/tfs/TB1.o5DJFXXXXX9aXXXXXXXXXXX-1024-1024.png',
-    ]);
+    import { computed, ref } from 'vue';
+
+    const BASEURL = import.meta.env.VITE_IMAGE_BASEURL;
+
+    const props = defineProps<{
+        projectDetails: any;
+    }>();
+
+    const images = computed(() => {
+        if (props.projectDetails.locationPath) {
+            const imagesArr = props.projectDetails.locationPath.split(',');
+            return imagesArr.map((item: string) => {
+                return BASEURL + item;
+            });
+        } else {
+            return [];
+        }
+    });
+
+    const workerNameArr = computed(() => {
+        if (props.projectDetails.workerNames) {
+            return props.projectDetails.workerNames.split(',');
+        } else {
+            return [];
+        }
+    });
 </script>
 
 <style lang="scss" scoped>
@@ -55,6 +85,7 @@
         padding: 24rpx;
         max-height: 100%;
         overflow-y: auto;
+        box-sizing: border-box;
         .pd-card__title {
             font-weight: 600;
             font-size: 32rpx;
@@ -70,14 +101,17 @@
             display: flex;
             align-items: center;
             margin-bottom: 24rpx;
+            padding-left: 50rpx;
+            position: relative;
             &::before {
                 content: '';
-                display: inline-block;
+                display: block;
                 width: 30rpx;
                 height: 36rpx;
                 background-image: url('../../../assets/images/location.png');
-                background-size: 100% 100%;
-                margin-right: 14rpx;
+                background-size: 100%;
+                position: absolute;
+                left: 0rpx;
             }
         }
         .pd-card {
@@ -101,6 +135,28 @@
                     flex-wrap: wrap;
                     .pd-chip {
                         flex: 1;
+                    }
+
+                    &.people-list {
+                        gap: 8rpx;
+                        flex-wrap: wrap;
+                        .people-item {
+                            height: 40rpx;
+                            padding: 0 8rpx;
+                            background: #ffffff;
+                            border-radius: 8rpx;
+                            line-height: 40rpx;
+                            &.leader {
+                                &::before {
+                                    content: '';
+                                    display: inline-block;
+                                    width: 22rpx;
+                                    height: 22rpx;
+                                    background: url('../../../assets/images/leader.png');
+                                    background-size: cover;
+                                }
+                            }
+                        }
                     }
                 }
             }

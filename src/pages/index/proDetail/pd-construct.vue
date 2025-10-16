@@ -4,9 +4,15 @@
         <!-- 工单状态切换按钮 -->
         <view class="pd-construct-set-wrap flex j-between a-center">
             <view class="pd-construct-state-btn">
-                <view class="state-btn active">{{ $t('common.pro.state_0') }}</view>
-                <view class="state-btn">{{ $t('common.pro.work_key_SGJL') }}</view>
-                <view class="state-btn">{{ $t('common.pro.work_key_WTFK') }}</view>
+                <view @click="tabChange(null)" class="state-btn" :class="tabType === null ? 'active' : ''">{{
+                    $t('common.pro.state_0')
+                }}</view>
+                <view @click="tabChange(0)" class="state-btn" :class="tabType === 0 ? 'active' : ''">
+                    {{ $t('common.pro.work_key_SGJL') }}
+                </view>
+                <view @click="tabChange(1)" class="state-btn" :class="tabType === 1 ? 'active' : ''">
+                    {{ $t('common.pro.work_key_WTFK') }}
+                </view>
             </view>
             <view class="pd-construct-add" @click="handelAdd">{{ $t('staff.pro.work_key_TJ') }}</view>
         </view>
@@ -17,8 +23,19 @@
             :show-scrollbar="false"
             :enhanced="true"
             :enable-back-to-top="true"
+            @scrolltolower="loadMore"
         >
-            <view class="pd-construct-card" v-for="item in 3" :key="item">
+            <!-- 加载中 -->
+            <view v-if="loading && page === 1" class="loading-box">
+                <text class="loading-icon">⏳</text>
+                <text class="loading-text">{{ $t('common.loading') }}</text>
+            </view>
+
+            <!-- 数据为空 -->
+            <view v-else-if="!loading && constructList.length === 0" class="empty-box">
+                <text class="empty-text">{{ $t('common.noData') }}</text>
+            </view>
+            <view v-else class="pd-construct-card" v-for="item in 3" :key="item">
                 <view>
                     <view class="status-box" :class="getStatusClass(1).class"></view>
                     <view class="status-wrap">
@@ -51,7 +68,7 @@
         </scroll-view>
 
         <!-- 添加弹窗 -->
-        <uni-popup @touchmove.stop.prevent :animation="true" ref="addRef" type="bottom">
+        <uni-popup @touchmove.stop.prevent :animation="true" ref="addRef" type="bottom" :is-mask-click="false">
             <view class="add-popup bottom-popup">
                 <view class="close-popup" @click="closePop"></view>
                 <view class="tabs-cap">
@@ -123,11 +140,16 @@
 </template>
 
 <script lang="ts" setup>
+    import API from '@/apis/index';
     import { i18n } from '@/main';
     import { ref, computed, watch, onMounted } from 'vue';
     import { getNowTimeStr } from '@/utils/common';
     import LockButton from '@/components/LockButton/index.vue';
     import ImageUploader from '@/components/ImageUploader/index.vue';
+
+    const props = defineProps<{
+        projectId: string | number;
+    }>();
 
     const getStatusClass = (status: number): any => {
         switch (status) {
@@ -151,7 +173,9 @@
     const tabClick = (index: number) => {
         activeIndex.value = index;
     };
-    const closePop = () => {};
+    const closePop = () => {
+        addRef.value.close();
+    };
     const currenDate = getNowTimeStr('yyyy-MM-dd');
     const buildDate = ref<any>(currenDate);
     const startDate = getNowTimeStr('start');
@@ -183,6 +207,60 @@
     const WT_imgs = ref<string[]>([]);
 
     const save = () => {};
+
+    const tabType = ref<number | null>(null);
+    const constructList = ref<any[]>([]);
+    const page = ref(1);
+    const loadingText = ref('');
+    const refreshing = ref(false);
+    const loading = ref(false); //
+    const hasMore = ref(true); // 新增：是否还有更多数据
+    const tabChange = (index: number | null) => {
+        tabType.value = index;
+    };
+    // 获取施工记录列表
+    const fetchData = async () => {
+        if (loading.value) return; // ✅ 防止重复加载
+        loading.value = true;
+        loadingText.value = i18n.global.t('common.loading');
+        try {
+            const res = await API.EMP_ProjectConstructionList({
+                id: props.projectId,
+                pageNo: page.value, //page.value
+                type: tabType.value,
+            });
+            const newData = res.data.list || [];
+
+            // newData.map((item: any) => {
+            //     item.workerNameArr = item.workerNames.split(',');
+            // });
+
+            if (newData.length < res.data.pageSize) {
+                console.log('没有更多数据了');
+                hasMore.value = false;
+                loadingText.value = i18n.global.t('common.no-more');
+            } else {
+                console.log('上拉加载更多');
+                hasMore.value = true;
+                loadingText.value = i18n.global.t('common.release');
+            }
+
+            constructList.value.push(...newData);
+
+            console.log('列表结果res', res);
+        } catch (error) {
+            console.log('列表结果error', error);
+        } finally {
+            refreshing.value = false;
+            loading.value = false;
+        }
+    };
+    const loadMore = () => {
+        if (!hasMore.value || loading.value) return;
+        page.value++;
+        fetchData();
+    };
+    fetchData();
 </script>
 
 <style lang="scss" scoped>

@@ -1,8 +1,8 @@
 <template>
     <view class="iu-wrap">
         <!-- 已上传图片 -->
-        <view v-for="(url, i) in innerList" :key="url + i" class="iu-item" @tap="onPreview(i)">
-            <image class="iu-img" :src="url" mode="aspectFill" />
+        <view v-for="(item, i) in innerList" :key="item.url + i" class="iu-item" @tap="onPreview(i)">
+            <image class="iu-img" :src="item.url" mode="aspectFill" />
             <view v-if="!disabled && deletable" class="iu-del" @tap.stop="onRemove(i)">×</view>
         </view>
 
@@ -16,9 +16,71 @@
 
 <script setup lang="ts">
     import { computed, ref, watch } from 'vue';
+    // import API from '@/apis/index';
+    import { useGlobalStore } from '@/stores/index';
+    const store = useGlobalStore();
 
     // type UploadFn = (localPath: string) => Promise<string>; // 需返回线上URL或可用路径
 
+    const UPLOAD_URL = import.meta.env.VITE_SERVER_BASEURL
+        ? `${import.meta.env.VITE_SERVER_BASEURL.replace(/\/+$/, '')}/emp/common/fileUpload`
+        : 'http://192.168.110.208:8655/app/emp/common/fileUpload';
+    // 统一把相对路径转绝对（若后端返回相对地址）
+    const IMAGE_BASE = import.meta.env.VITE_IMAGE_BASEURL || '';
+    // 自定义额外表单字段（可按需传）
+    const extraFormData = {
+        /* bizType: 'emp', ... */
+        fileType: 1,
+    };
+
+    // / ===== 上传实现 =====
+    function uploadOne(localPath: string, onProgress?: (p: number) => void): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const task = uni.uploadFile({
+                url: UPLOAD_URL,
+                filePath: localPath,
+                name: 'file', // 后端接收字段名，常见: 'file' / 'files'
+                formData: extraFormData,
+                header: {
+                    Accept: 'application/json',
+                    // 覆盖/追加你的鉴权
+                    token: store?.token || '',
+                },
+                success: res => {
+                    try {
+                        if (res.statusCode !== 200) {
+                            return reject(`HTTP ${res.statusCode}`);
+                        }
+                        // 兼容后端返回字符串/JSON
+                        const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+
+                        // 根据你们后端约定提取地址：
+                        // 常见结构：{ code:2000, data:{filePath:''}, msg:'' }
+                        if (data?.code === 2000) {
+                            const raw = data.data.filePath;
+                            const finalUrl = String(raw || '').startsWith('http') ? raw : IMAGE_BASE + raw;
+                            if (!finalUrl) return reject('上传成功但未返回地址');
+                            resolve({ path: raw, url: finalUrl });
+
+                            // // 只返回图片的最终URL字符串
+                            // resolve(finalUrl);
+                        } else {
+                            reject(data?.msg || '上传失败');
+                        }
+                    } catch (e) {
+                        reject('返回解析失败');
+                    }
+                },
+                fail: err => reject(err?.errMsg || '上传失败'),
+            });
+
+            // 进度回调（可选）
+            task?.onProgressUpdate?.(prog => {
+                onProgress?.(prog.progress); // 0-100
+                // 你也可以在这里触发组件事件：emit('progress', { path: localPath, progress: prog.progress })
+            });
+        });
+    }
     interface Props {
         /** v-model 已上传图片URL列表 */
         modelValue: string[];
@@ -55,7 +117,7 @@
         (e: 'error', msg: string): void;
     }>();
 
-    const innerList = ref<string[]>([...props.modelValue]);
+    const innerList = ref<any[]>([...props.modelValue]);
 
     watch(
         () => props.modelValue,
@@ -117,12 +179,19 @@
                     }
 
                     try {
-                        let url = localPath;
+                        // let url = localPath;
                         //    这里写上传的逻辑
+                        const remoteUrlObj = await uploadOne(localPath, p => {
+                            // 这里能拿到单张图片的进度 p（0-100）
+                            // 需要的话可以把进度存到一个 Map 里展示
+                            console.log('progress', p);
+                        });
 
-                        innerList.value.push(url);
+                        console.log('remoteUrl---------', remoteUrlObj);
+
+                        innerList.value.push(remoteUrlObj);
                     } catch (e: any) {
-                        emit('error', e?.message || '上传失败');
+                        emit('error', e?.message || String(e) || '上传失败');
                     }
                 }
 

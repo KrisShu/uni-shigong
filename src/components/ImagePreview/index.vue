@@ -1,16 +1,14 @@
 <template>
     <view class="images-box">
-        <view class="image-box" v-for="(img, index) in newsimages" :key="img" @click="preview(index)">
-            <image class="image" :src="img" mode="aspectFill"></image>
+        <view class="image-box" v-for="(img, index) in newsimages" :key="index" @click="preview(index)">
+            <img class="image" :src="img" mode="aspectFill"></img>
+            <!-- <image class="image" :src="img" mode="aspectFill"></image> -->
         </view>
-        <!-- <view class="image-box">
-            <image class="image" src="" mode="aspectFill"></image>
-        </view> -->
     </view>
 </template>
 
 <script lang="ts" setup>
-    import { computed } from 'vue';
+    import { computed, watch } from 'vue';
     const props = defineProps<{
         images: string | string[];
     }>();
@@ -26,6 +24,14 @@
             current: index,
         });
     };
+
+    watch(
+        () => props.images,
+        val => {
+            console.log('images更新了:', val);
+        },
+        { immediate: true, deep: true },
+    );
 </script>
 
 <style lang="scss" scoped>
@@ -39,6 +45,7 @@
             border-radius: 8rpx;
             background-color: saddlebrown;
             position: relative;
+            overflow: hidden;
             &::before {
                 content: '';
                 display: block;

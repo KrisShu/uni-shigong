@@ -13,13 +13,9 @@
                     zIndex: 1,
                 }"
             >
-                <view
-                    class="pp-pill fast-fill"
-                    :style="{
-                        backgroundImage: `url(${fastBG})`,
-                    }"
-                    >{{ fastProgress }}%</view
-                >
+                <view v-show="fastProgress" class="pp-pill fast-fill" :style="{ background: fastColor }">
+                    {{ fastProgress }}%
+                </view>
             </view>
             <!-- 顶层进度条（进度较慢的） -->
             <view
@@ -33,13 +29,9 @@
                     left: 0,
                 }"
             >
-                <view
-                    class="pp-pill slow-fill"
-                    :style="{
-                        backgroundImage: `url(${slowBG})`,
-                    }"
-                    >{{ slowProgress }}%</view
-                >
+                <view v-show="slowProgress" class="pp-pill slow-fill" :style="{ background: slowColor }">
+                    {{ slowProgress }}%
+                </view>
             </view>
         </view>
         <!-- 图例 -->
@@ -58,8 +50,8 @@
 
 <script setup lang="ts">
     import { computed, ref, watch, onMounted } from 'vue';
-    import sysfillbg from '@/assets/images/sys-fill-bg.png';
-    import workerfillbg from '@/assets/images/worker-fill-bg.png';
+    // import sysfillbg from '@/assets/images/sys-fill-bg.png';
+    // import workerfillbg from '@/assets/images/worker-fill-bg.png';
 
     const props = defineProps<{
         systemProgress: number; // 0-100
@@ -73,8 +65,8 @@
     const slowProgress = computed(() => Math.min(props.systemProgress, props.workerProgress));
     const systemColor = '#F5CEA0'; //计划施工进度颜色
     const workerColor = '#F7931E'; // 实际施工进度颜色
-    const fastBG = computed(() => (props.systemProgress >= props.workerProgress ? sysfillbg : workerfillbg));
-    const slowBG = computed(() => (props.systemProgress < props.workerProgress ? sysfillbg : workerfillbg));
+    // const fastBG = computed(() => (props.systemProgress >= props.workerProgress ? sysfillbg : workerfillbg));
+    // const slowBG = computed(() => (props.systemProgress < props.workerProgress ? sysfillbg : workerfillbg));
     const fastColor = computed(() => (props.systemProgress >= props.workerProgress ? systemColor : workerColor)); // 蓝色或绿色
     const slowColor = computed(() => (props.systemProgress < props.workerProgress ? systemColor : workerColor));
 
@@ -157,16 +149,19 @@
     /* 百分比胶囊 */
     .pp-pill {
         position: absolute;
-        top: -40rpx; /* 胶囊在轨道之上（按UI） */
+        top: -42rpx; /* 胶囊在轨道之上（按UI） */
         line-height: 38rpx;
         height: 38rpx;
-        width: 56rpx;
+        // width: 56rpx;
+        width: fit-content;
+        padding: 0 6rpx;
         background-size: cover;
         text-align: center;
         color: #fff;
         font-size: 20rpx;
+        border-radius: 10rpx 10rpx 10rpx 0rpx;
         &.fast-fill {
-            right: 0rpx;
+            right: -80rpx;
         }
         &.slow-fill {
             left: 50%;

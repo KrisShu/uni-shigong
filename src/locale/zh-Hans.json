@@ -28,7 +28,7 @@
     "staff.pro.start_step_3_btn": "确认启动项目",
 
     "staff.pro.updateProgress_title": "更新整体项目进度",
-    "staff.pro.updateProgress_tip_label": "温馨提示：",
+    "staff.pro.updateProgress_tip_label": "温馨提示",
     "staff.pro.updateProgress_tip_value": "每天项目进度仅可更新一次",
     "staff.pro.updateProgress_key_history": "历史项目进度",
     "staff.pro.updateProgress_key_current": "当前项目进度",
@@ -45,6 +45,7 @@
     "staff.pro.end_title": "施工结束说明",
     "staff.pro.end_key_image": "施工结束图片",
     "staff.pro.end_key_desc": "施工描述",
+    "staff.pro.end_tip": "先更新项目进度为100%表示已完成，才能操作施工结束",
 
     "staff.pro.check.key_YSMX": "验收描述",
     "staff.mine.key_DBX": " 待办项",
@@ -146,6 +147,11 @@
     "common.save": "保存",
     "common.cancel": "取消",
     "common.placeholder": "请输入",
+    "common.unit.day": "天",
+    "common.status.success": "保存成功",
+    "common.btn.YZX": "已知晓",
+    "common.text.SCTP": "上传图片",
+    "common.text.SCZ": "正在上传...",
 
     "website.introduction": "公司介绍",
     "website.contact": "联系方式",

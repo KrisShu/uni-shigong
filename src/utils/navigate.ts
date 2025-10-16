@@ -3,7 +3,7 @@
  */
 interface RouterParam {
     url: string;
-    query?: Record<string, any>;
+    query?: Record<string | number, any>;
     success?: (res: any) => void;
     fail?: (res: any) => void;
     complete?: (res: any) => void;

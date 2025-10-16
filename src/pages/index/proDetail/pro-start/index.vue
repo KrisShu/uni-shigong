@@ -3,8 +3,8 @@
         <view class="pro-cap-box">
             <view class="common-cap">
                 <!-- 示例：返回按钮 -->
-                <view class="pd-back common-back"> </view>
-                <text class="pd-title common-title">3#3 武侯区锦城大道666号</text>
+                <view class="pd-back common-back" @click="Back"> </view>
+                <text class="pd-title common-title">{{ projectTilte }}</text>
             </view>
             <view class="progress-chunk">
                 <view class="progress-wrap" :class="step >= 1 ? 'active' : ''">
@@ -22,21 +22,51 @@
             </view>
         </view>
         <view class="pro-bottom">
-            <oneStep v-show="step === 1" @next="nextTwo" />
-            <twoStep v-show="step === 2" @next="nextThree" />
-            <threeStep v-show="step === 3" />
+            <oneStep :projectRecord="projectRecord" :projectId="currProjectId" v-show="step === 1" @next="nextTwo" />
+            <twoStep :projectRecord="projectRecord" :projectId="currProjectId" v-show="step === 2" @next="nextThree" />
+            <threeStep :projectId="currProjectId" v-show="step === 3" />
         </view>
     </view>
 </template>
 
 <script lang="ts" setup>
-    import { ref } from 'vue';
+    import { ref, reactive } from 'vue';
     import oneStep from './oneStep.vue';
     import twoStep from './twoStep.vue';
     import threeStep from './threeStep.vue';
+    import { onLoad } from '@dcloudio/uni-app';
+    // import { navigateTo } from '@/utils/navigate';
+    import API from '@/apis/index';
 
-    const step = ref(1);
+    const currProjectId = ref<string | number>('');
+    const projectTilte = ref('');
+    onLoad((options: any) => {
+        // console.log('接收参数', options);
+        currProjectId.value = Number(options.id);
+        projectTilte.value = options.title;
+        fetchStartProjectRecord();
+    });
+    const step = ref<number>(1);
+    const projectRecord = reactive<any>({});
+    const fetchStartProjectRecord = async () => {
+        try {
+            const res = await API.EMP_ProjectStartProjectRecord({ id: currProjectId.value });
+            Object.assign(projectRecord, res.data ?? {});
+            step.value = projectRecord.type;
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+
+    const Back = () => {
+        // navigateTo({
+        //     url: '/pages/index/proDetail/index',
+        // });
+        uni.navigateBack();
+    };
+
     const nextTwo = () => {
+        fetchStartProjectRecord();
         step.value = 2;
     };
     const nextThree = () => {

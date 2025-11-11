@@ -1,0 +1,644 @@
+<template>
+    <view class="page-container" :style="{ height: contentHeight + 'px' }">
+        <view class="mine-cap">
+            <view class="cap-title">{{ $t('common.mine') }}</view>
+            <view class="cap-set-chunk">
+                <view class="name">{{ GlobalStore.userInfo?.username }}</view>
+                <view class="set-wrap flex">
+                    <!-- 修改密码 -->
+                    <view class="set-item" @click="updatePass">{{ $t('common.mine.XGMM') }}</view>
+                    <!-- 完善发票 -->
+                    <view class="set-item" @click="perfectInvoice">{{ $t('cus.mine.key_WSFPXX') }}</view>
+                    <!-- 退出系统 -->
+                    <view class="set-item" @click="loginOutWay">{{ $t('common.mine.TC') }}</view>
+                </view>
+            </view>
+        </view>
+        <view class="bottom-wrap">
+            <view class="set-item-wrap">
+                <view class="item-title">{{ $t('common.home') }}</view>
+                <view class="set-item-box">
+                    <view
+                        class="set-item"
+                        v-for="(item, index) in myProjectStatistics"
+                        :key="index"
+                        @click="handlePro(index)"
+                    >
+                        <view class="set-item-num">{{ item.num }}</view>
+                        <view class="set-item-title">{{ item.title }}</view>
+                    </view>
+                </view>
+            </view>
+        </view>
+        <!-- 修改密码 弹窗 -->
+        <uni-popup @touchmove.stop.prevent :animation="true" ref="upDateRef" type="bottom" :is-mask-click="false">
+            <view class="update-popup bottom-popup">
+                <view class="close-popup" @click="closePop"></view>
+                <view class="popup_title">{{ $t('common.mine.XGMM') }}</view>
+                <view class="form-item">
+                    <view class="label required">{{ $t('common.mine.XGMM_YSMM') }}</view>
+                    <view class="input-wrap">
+                        <input
+                            v-model="oldPwd"
+                            class="uni-input"
+                            placeholder-class="ph"
+                            :placeholder="$t('common.placeholder')"
+                            type="password"
+                            maxlength="20"
+                        />
+                    </view>
+                </view>
+                <view class="form-item">
+                    <view class="label required">{{ $t('common.mine.XGMM_XMM') }}</view>
+                    <view class="input-wrap">
+                        <input
+                            v-model="newPwd"
+                            class="uni-input"
+                            placeholder-class="ph"
+                            :placeholder="$t('common.placeholder')"
+                            type="password"
+                            maxlength="20"
+                        />
+                    </view>
+                </view>
+                <view class="form-item">
+                    <view class="label required">{{ $t('common.mine.XGMM_QRXMM') }}</view>
+                    <view class="input-wrap">
+                        <input
+                            v-model="confirmPwd"
+                            class="uni-input"
+                            placeholder-class="ph"
+                            :placeholder="$t('common.placeholder')"
+                            type="password"
+                            maxlength="20"
+                        />
+                    </view>
+                </view>
+                <view class="btn-wrap">
+                    <button class="btn cancel" @click="closePop">{{ $t('common.cancel') }}</button>
+                    <view class="btn">
+                        <LockButton :onClick="saveUpdate">{{ $t('common.save') }}</LockButton>
+                    </view>
+                </view>
+            </view>
+        </uni-popup>
+
+        <!-- 提示弹窗 -->
+        <uni-popup @touchmove.stop.prevent :animation="true" ref="tipsRef" type="center" :is-mask-click="false">
+            <view class="tips-popup">
+                <view class="close-popup"></view>
+                <view class="title">{{ $t('staff.pro.updateProgress_tip_label') }}</view>
+                <view class="text">{{ $t('common.mine.TC_tip') }}</view>
+
+                <view class="btn-box">
+                    <view class="btn cancel" @click="cancel">{{ $t('common.cancel') }}</view>
+                    <view class="btn sure" @click="sure">{{ $t('common.text.QD') }}</view>
+                </view>
+            </view>
+        </uni-popup>
+        <!-- 完善发票弹窗 -->
+        <uni-popup :animation="true" ref="perfectInvoiceRef" type="bottom" :is-mask-click="false">
+            <view class="perfect-invoice-popup bottom-popup">
+                <view class="close-popup" @click="closePerfectPop"></view>
+                <view class="popup_title">{{ $t('cus.mine.key_WSFPXX') }}</view>
+
+                <view class="form-item-wrap">
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.name2') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.company"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="100"
+                            />
+                        </view>
+                    </view>
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.tax_no') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.taxId"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="50"
+                            />
+                        </view>
+                    </view>
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.address') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.address"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="100"
+                            />
+                        </view>
+                    </view>
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.contact') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.phone"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="20"
+                            />
+                        </view>
+                    </view>
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.bank') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.bankName"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="100"
+                            />
+                        </view>
+                    </view>
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.mine.FP.bank_account') }}</view>
+                        <view class="input-wrap">
+                            <input
+                                v-model="form.bankNumber"
+                                class="uni-input"
+                                placeholder-class="ph"
+                                :placeholder="$t('common.placeholder')"
+                                maxlength="50"
+                            />
+                        </view>
+                    </view>
+                </view>
+
+                <view class="btn-wrap">
+                    <button class="btn cancel" @click="closePerfectPop">{{ $t('common.cancel') }}</button>
+                    <view class="btn">
+                        <LockButton :onClick="saveInvoice">{{ $t('cus.mine.FP.btn_save') }}</LockButton>
+                    </view>
+                </view>
+            </view>
+        </uni-popup>
+
+        <ClientTabBar v-if="showTabbar" />
+    </view>
+</template>
+<script setup lang="ts">
+    import { reactive, ref } from 'vue';
+    import { useContentHeight } from '@/hooks/useContentHeight';
+    import LockButton from '@/components/LockButton/index.vue';
+    import { useGlobalStore } from '@/stores/index';
+    import API from '@/apis/index';
+    import { i18n } from '@/main';
+    import { aesEncrypt } from '@/utils/crypt';
+    import { reLaunch } from '@/utils/navigate';
+    import { useFilterStore } from '@/stores/filter';
+    import { onShow } from '@dcloudio/uni-app';
+    import ClientTabBar from '@/components/ClientTabBar/index.vue';
+
+    const filterStore = useFilterStore();
+    const GlobalStore = useGlobalStore();
+
+    const { contentHeight } = useContentHeight(0);
+
+    const upDateRef = ref<any>(null);
+
+    const tipsRef = ref<any>(null);
+    const loginOutWay = () => {
+        tipsRef.value.open();
+    };
+    const sure = async () => {
+        tipsRef.value.close();
+        loginOut();
+    };
+    const cancel = () => {
+        tipsRef.value.close();
+    };
+    const loginOut = async () => {
+        await API.CUS_logout({
+            token: GlobalStore.token,
+        });
+        GlobalStore.loginOut();
+    };
+
+    const oldPwd = ref('');
+    const newPwd = ref('');
+    const confirmPwd = ref('');
+    const showTabbar = ref(true);
+    const updatePass = () => {
+        console.log('updatePass');
+        upDateRef.value.open();
+        showTabbar.value = false;
+    };
+    const closePop = () => {
+        oldPwd.value = '';
+        newPwd.value = '';
+        confirmPwd.value = '';
+        upDateRef.value.close();
+        showTabbar.value = true;
+    };
+    const saveUpdate = async () => {
+        // console.log('saveUpdate');
+        // closePop();
+        const reg = /^[A-Za-z0-9]{6,20}$/;
+        if (!oldPwd.value) {
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_YSMM_tip'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!newPwd.value) {
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_XMM_tip'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!confirmPwd.value) {
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_QRXMM_tip'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!reg.test(oldPwd.value) || !reg.test(newPwd.value) || !reg.test(confirmPwd.value)) {
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_error'),
+                icon: 'none',
+            });
+            return false;
+        }
+
+        if (newPwd.value !== confirmPwd.value) {
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_tip'),
+                icon: 'none',
+            });
+            return;
+        }
+
+        try {
+            await API.CUS_updatePwd({
+                oldPwd: aesEncrypt(oldPwd.value),
+                newPwd: aesEncrypt(newPwd.value),
+                confirmPwd: aesEncrypt(confirmPwd.value),
+            });
+            closePop();
+            uni.showToast({
+                title: i18n.global.t('common.mine.XGMM_success'),
+                icon: 'none',
+            });
+            setTimeout(() => {
+                loginOut();
+            }, 1000);
+        } catch {
+            console.log('error');
+        }
+    };
+
+    const perfectInvoiceRef = ref<any>(null);
+    const form = reactive({
+        bankNumber: '', //开户银行账号
+        company: '', //公司名称/个人姓名
+        bankName: '', //开户银行名称
+        address: '', //地址
+        phone: '', //联系方式
+        taxId: '', //纳税人识别号
+    });
+    const perfectInvoice = () => {
+        fetchcompleteInvoiceInfo();
+        perfectInvoiceRef.value.open();
+        showTabbar.value = false;
+    };
+    const fetchcompleteInvoiceInfo = async () => {
+        try {
+            const res = await API.CUS_completeInvoiceInfo();
+            Object.assign(form, res.data, {});
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+
+    const closePerfectPop = () => {
+        perfectInvoiceRef.value.close();
+        showTabbar.value = true;
+    };
+    const fetchWay1 = () => {
+        return API.CUS_myProjectStatistics();
+    };
+
+    interface TodoItem {
+        title: string;
+        num: number;
+    }
+
+    const myProjectStatistics = reactive<TodoItem[]>([
+        {
+            title: i18n.global.t('common.pro.state_1'),
+            num: 0,
+        },
+        {
+            title: i18n.global.t('common.pro.state_2'),
+            num: 0,
+        },
+        {
+            title: i18n.global.t('common.pro.state_3'),
+            num: 0,
+        },
+        {
+            title: i18n.global.t('common.pro.state_4'),
+            num: 0,
+        },
+    ]);
+
+    const handlePro = (index: number) => {
+        filterStore.set({ empIndexActiveTab: index + 1, scrollTop: 0 }); // 记录回到顶部
+        reLaunch({ url: '/pages/packageCustomer/index/index' });
+    };
+    const saveInvoice = async () => {
+        if (!form.company) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.name2'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!form.taxId) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.tax_no'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!form.address) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.address'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!form.phone) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.contact'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!form.bankName) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.bank'),
+                icon: 'none',
+            });
+            return;
+        }
+        if (!form.bankNumber) {
+            uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.mine.FP.bank_account'),
+                icon: 'none',
+            });
+            return;
+        }
+
+        try {
+            const params = Object.assign({}, form);
+            await API.CUS_modifyInvoiceInfo(params);
+            uni.showToast({
+                title: i18n.global.t('common.status.success'),
+                icon: 'none',
+            });
+            closePerfectPop();
+        } catch {
+            console.log('error');
+        }
+    };
+    const fetchData = () => {
+        try {
+            Promise.all([fetchWay1()]).then(([res1]) => {
+                console.log('all', res1);
+                const resData1 = res1.data;
+                myProjectStatistics[0].num = resData1.state0_count;
+                myProjectStatistics[1].num = resData1.state1_count;
+                myProjectStatistics[2].num = resData1.state2_count;
+                myProjectStatistics[3].num = resData1.state3_count;
+            });
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    onShow(() => {
+        fetchData();
+    });
+</script>
+<style lang="scss" scoped>
+    .page-container {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-image: url('@/assets/images/mine-bg.png');
+        background-size: cover;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-sizing: border-box;
+        padding-bottom: 120rpx; /* 给自定义tabbar留出空间 */
+        .mine-cap {
+            margin-bottom: 40rpx;
+            .cap-title {
+                font-weight: 600;
+                font-size: 36rpx;
+                color: #ffffff;
+                line-height: 50rpx;
+                margin-top: 24rpx;
+                margin-bottom: 40rpx;
+                margin-left: 32rpx;
+            }
+            .cap-set-chunk {
+                padding: 62rpx;
+                box-sizing: border-box;
+                .name {
+                    font-weight: 600;
+                    font-size: 40rpx;
+                    color: #ffffff;
+                    line-height: 56rpx;
+                    margin-bottom: 24rpx;
+                }
+                .set-wrap {
+                    display: flex;
+                    gap: 16rpx;
+                    .set-item {
+                        padding: 6rpx 20rpx;
+                        border-radius: 8rpx;
+                        border: 1rpx solid rgba(255, 255, 255, 0.5);
+                        font-size: 24rpx;
+                        color: #ffffff;
+                        line-height: 30rpx;
+                    }
+                }
+            }
+        }
+        .bottom-wrap {
+            flex: 1;
+            min-height: 0; /* 允许在 flex 容器里滚动（防止高度被撑死） */
+            overflow-y: auto;
+            padding: 32rpx;
+            box-sizing: border-box;
+            .set-item-wrap {
+                margin-top: 24rpx;
+                .item-title {
+                    font-weight: 600;
+                    font-size: 32rpx;
+                    color: #303133;
+                    line-height: 32rpx;
+                    margin-bottom: 32rpx;
+                }
+            }
+            .set-item-box {
+                display: flex;
+                gap: 24rpx;
+                flex-wrap: wrap;
+                .set-item {
+                    width: 48%;
+                    min-width: 0;
+                    background: #f4f6f8;
+                    border-radius: 24rpx;
+                    height: 163rpx;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    .set-item-num {
+                        font-weight: 600;
+                        font-size: 36rpx;
+                        color: #303133;
+                        line-height: 50rpx;
+                    }
+                    .set-item-title {
+                        font-weight: 400;
+                        font-size: 28rpx;
+                        color: #909399;
+                        line-height: 40rpx;
+                    }
+                }
+            }
+        }
+
+        .update-popup,
+        .perfect-invoice-popup {
+            .form-item {
+                border-radius: 24rpx;
+                border: 1rpx solid #e4e4e4;
+                padding: 24rpx;
+                margin-bottom: 24rpx;
+                &:last-of-type {
+                    margin-bottom: 48rpx;
+                }
+                .label {
+                    font-weight: 400;
+                    font-size: 24rpx;
+                    color: #909399;
+                    line-height: 24rpx;
+                    margin-bottom: 24rpx;
+                }
+                .uni-input {
+                    font-weight: 600;
+                    font-size: 28rpx;
+                    color: #303133;
+                    line-height: 28rpx;
+                }
+            }
+            .btn-wrap {
+                display: flex;
+                gap: 24rpx;
+                .btn {
+                    flex: 1;
+                    &.cancel {
+                        height: 88rpx;
+                        background: #e4e4e4;
+                        border-radius: 24rpx;
+                        font-weight: 600;
+                        font-size: 28rpx;
+                        color: #ffffff;
+                        line-height: 40rpx;
+                        text-align: center;
+                        line-height: 88rpx;
+                        padding: 0;
+                        &::after {
+                            border: none;
+                        }
+                    }
+                }
+            }
+        }
+
+        .perfect-invoice-popup {
+            height: 800rpx;
+            display: flex;
+            flex-direction: column;
+            // overflow: hidden;
+            .form-item-wrap {
+                flex: 1;
+                overflow-y: auto;
+                min-height: 0;
+            }
+        }
+
+        .tips-popup {
+            background: #ffffff;
+            border-radius: 24rpx;
+            overflow: hidden;
+            padding: 48rpx 32rpx;
+            position: relative;
+            width: 80vw;
+            // margin: auto;
+            .close-popup {
+                position: absolute;
+                width: 40rpx;
+                height: 40rpx;
+                background-image: url('@/assets/images/icon-close-pop.png');
+                background-size: cover;
+                right: 32rpx;
+                top: -72rpx;
+            }
+            .title {
+                font-weight: 600;
+                font-size: 32rpx;
+                color: #303133;
+                line-height: 32rpx;
+                margin-bottom: 48rpx;
+                text-align: center;
+            }
+            .text {
+                font-weight: 400;
+                font-size: 28rpx;
+                color: #909399;
+                text-align: center;
+            }
+            .btn-box {
+                display: flex;
+                gap: 24rpx;
+                margin-top: 48rpx;
+                .btn {
+                    flex: 1;
+                    min-width: 0;
+                    height: 88rpx;
+                    background: #f7931e;
+                    border-radius: 24rpx;
+                    text-align: center;
+                    line-height: 88rpx;
+                    color: #ffffff;
+                    &.cancel {
+                        background: #e4e4e4;
+                    }
+                }
+            }
+        }
+    }
+</style>

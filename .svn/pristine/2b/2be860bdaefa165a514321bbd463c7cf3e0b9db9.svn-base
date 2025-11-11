@@ -1,0 +1,333 @@
+<template>
+    <view class="page requirement-detail-page">
+        <view class="top-fixed">
+            <view class="pd-header common-cap">
+                <!-- 示例：返回按钮 -->
+                <view class="pd-back common-back" @click="Back"> </view>
+                <text class="pd-title common-title">{{ $t('cus.requirement.XZXQ') }}</text>
+            </view>
+        </view>
+
+        <view class="bottom-area">
+            <view class="form-content">
+                <view class="tab-content1">
+                    <!-- 施工地址 -->
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.requirement.key_SGDZ') }}</view>
+                        <input
+                            class="input uni-input"
+                            type="text"
+                            :placeholder="$t('common.placeholder')"
+                            placeholder-class="ph"
+                            v-model="address"
+                            maxlength="100"
+                        />
+                    </view>
+                    <!-- 需求描述 -->
+                    <view class="form-item">
+                        <view class="label required">{{ $t('cus.requirement.key_XQMS') }}</view>
+                        <textarea
+                            placeholder-class="ph"
+                            :placeholder="$t('common.placeholder')"
+                            class="uni-textarea"
+                            v-model="remark"
+                            maxlength="100"
+                        ></textarea>
+                    </view>
+                    <!-- 施工位置图 -->
+                    <view class="form-item">
+                        <view class="label">{{ $t('cus.requirement.key_SGWZT') }}</view>
+
+                        <ImageUploader ref="imageUploaderRef" platform="cus" v-model="locationPath" />
+                    </view>
+
+                    <!-- 需求预算 -->
+                    <view class="form-item">
+                        <view class="label">{{ $t('cus.requirement.key_XQYS') }}/$</view>
+
+                        <input
+                            class="input uni-input"
+                            type="number"
+                            :placeholder="$t('common.placeholder')"
+                            placeholder-class="ph"
+                            :value="budget"
+                            maxlength="50"
+                            @input="handleBudgetInput"
+                        />
+                    </view>
+                    <!-- 预计工期 -->
+                    <view class="form-item">
+                        <view class="label">{{ $t('cus.requirement.key_YJGQ') }}/{{ $t('common.unit.day') }}</view>
+                        <input
+                            class="input uni-input"
+                            type="number"
+                            :placeholder="$t('common.placeholder')"
+                            placeholder-class="ph"
+                            v-model="period"
+                            maxlength="20"
+                            @input="handlePeriodInput"
+                        />
+                    </view>
+                    <!-- 指望开工日期 -->
+                    <view class="form-item">
+                        <view class="label">{{ $t('cus.requirement.key_ZWKGRQ') }}</view>
+
+                        <picker
+                            mode="date"
+                            :value="workDate"
+                            :start="startDate"
+                            :end="endDate"
+                            @change="bindDateChange"
+                        >
+                            <view class="uni-input choose-input">{{ workDate }}</view>
+                        </picker>
+                    </view>
+                </view>
+            </view>
+        </view>
+        <LockButton :onClick="save_requirement">{{ $t('cus.requirement.btn_save') }}</LockButton>
+    </view>
+</template>
+
+<script lang="ts" setup>
+    import { ref, onMounted, onUnmounted, reactive, nextTick } from 'vue';
+    import { i18n } from '@/main';
+    import { getNowTimeStr } from '@/utils/common';
+
+    import LockButton from '@/components/LockButton/index.vue';
+    import API from '@/apis/index';
+    import { onLoad } from '@dcloudio/uni-app';
+    import ImageUploader from '@/components/ImageUploader/index.vue';
+    import { useSmartBack } from '@/hooks/useSmartBack';
+    import { aesDecrypt } from '@/utils/crypt';
+
+    const { smartBack } = useSmartBack();
+
+    const address = ref<string>(''); //施工地址
+    const remark = ref<string>(''); //需求描述
+    const budget = ref<string>(''); //需求预算
+    const period = ref<string>(''); //预计工期
+    const locationPath = ref<any[]>([]); //施工位置图
+    const currenDate = getNowTimeStr('yyyy-MM-dd');
+    const workDate = ref<any>(currenDate); //开工日期
+    const startDate = getNowTimeStr('start');
+    const endDate = getNowTimeStr('end');
+
+    const bindDateChange = (e: any) => {
+        workDate.value = e.detail.value;
+    };
+
+    const requirementId = ref<string | number>('');
+    onLoad((options: any) => {
+        console.log('接收参数', options);
+        requirementId.value = Number(aesDecrypt(options.id));
+        if (requirementId.value) {
+            fetchRequirementDetails();
+        }
+    });
+    const imageUploaderRef = ref<any>(null);
+    // 保存
+    const save_requirement = async () => {
+        if (imageUploaderRef.value?.waitForIdle) {
+            uni.showLoading({ title: i18n.global.t('common.text.SCZ'), mask: true });
+            await imageUploaderRef.value.waitForIdle();
+            uni.hideLoading();
+        }
+        if (!address.value) {
+            return uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.requirement.key_SGDZ'),
+                icon: 'none',
+            });
+        }
+        if (!remark.value) {
+            return uni.showToast({
+                title: i18n.global.t('common.placeholder') + i18n.global.t('cus.requirement.key_XQMS'),
+                icon: 'none',
+            });
+        }
+        const _locationPath = ref<string>(''); //
+        if (locationPath.value.length > 0) {
+            _locationPath.value = locationPath.value.map(item => item.path).join(',');
+        }
+        if (requirementId.value) {
+            try {
+                const res = await API.CUS_UpdateDemand({
+                    id: requirementId.value,
+                    period: period.value,
+                    address: address.value,
+                    workDate: workDate.value,
+                    remark: remark.value,
+                    locationPath: _locationPath.value || '',
+                    budget: budget.value,
+                });
+                console.log(res);
+
+                uni.showToast({
+                    title: i18n.global.t('common.status.success'),
+                    icon: 'none',
+                });
+                Back();
+            } catch (error) {}
+        } else {
+            try {
+                const res = await API.CUS_PublishDemand({
+                    id: '',
+                    period: period.value,
+                    address: address.value,
+                    workDate: workDate.value,
+                    remark: remark.value,
+                    locationPath: _locationPath.value || '',
+                    budget: budget.value,
+                });
+                console.log(res);
+
+                uni.showToast({
+                    title: i18n.global.t('common.status.success'),
+                    icon: 'none',
+                });
+                Back();
+            } catch (error) {}
+        }
+    };
+
+    const Back = () => {
+        smartBack('pages/packageCustomer/requirement/index');
+    };
+
+    const fetchRequirementDetails = async () => {
+        try {
+            const res = await API.CUS_GetUpdateDemand({
+                id: requirementId.value,
+            });
+            console.log('res', res);
+            address.value = res.data.address; //施工地址
+            remark.value = res.data.remark;
+            budget.value = res.data.budget;
+            period.value = res.data.period;
+            workDate.value = res.data.workDate;
+            if (res.data.locationPath) {
+                locationPath.value = res.data.locationPath.split(',').map(item => {
+                    return {
+                        path: item,
+                        url: import.meta.env.VITE_IMAGE_BASEURL + item,
+                    };
+                });
+            }
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+
+    // 大于等于0 最多两位小数
+    const handleBudgetInput = (e: any) => {
+        let value = e.detail.value;
+        // 移除非数字和小数点的字符
+        value = value.replace(/[^\d.]/g, '');
+        // 确保只有一个小数点
+        const dotCount = (value.match(/\./g) || []).length;
+        if (dotCount > 1) {
+            value = value.replace(/\.+$/, '');
+        }
+        // 限制小数位数为2位
+        if (value.includes('.')) {
+            const parts = value.split('.');
+            if (parts[1].length > 2) {
+                value = parts[0] + '.' + parts[1].substring(0, 2);
+            }
+        }
+        // 确保数值 >= 0
+        if (value && parseFloat(value) < 0) {
+            value = '0';
+        }
+        console.log('value', value);
+        e.detail.value = value;
+
+        budget.value = value;
+    };
+    // 大于等于0 整数
+    const handlePeriodInput = (e: any) => {
+        let value = e.detail.value;
+        // 移除非数字字符，只保留数字
+        value = value.replace(/\D/g, '');
+        // 如果以0开头，去掉开头的0（除非就是0）
+        if (value.length > 1 && value.startsWith('0')) {
+            value = value.replace(/^0+/, '');
+        }
+        period.value = value;
+    };
+</script>
+
+<style lang="scss" scoped>
+    /* 页面的根容器：用 flex 切成“上固定 + 下滚动” */
+    .requirement-detail-page {
+        display: flex;
+        flex-direction: column;
+        height: 100vh; /* 让页面占满可视高度 */
+        overflow: hidden; /* 避免外层也滚动 */
+    }
+
+    /* 顶部固定区：高度自适应，不滚动 */
+    .top-fixed {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* 下部固定区：flex:1 + min-height:0 是关键 */
+    .bottom-area {
+        flex: 1; /* 占满剩余空间 */
+        min-height: 0; /* 允许在 flex 容器里滚动（防止高度被撑死） */
+        /* 可选：iOS 惯性滚动更顺滑 */
+        // -webkit-overflow-scrolling: touch; // H5 中有效
+        padding-top: 32rpx;
+        overflow: auto;
+    }
+
+    .form-content {
+        .form-item {
+            border-radius: 24rpx;
+            border: 1rpx solid #e4e4e4;
+            padding: 24rpx;
+            margin-bottom: 24rpx;
+            &:last-of-type {
+                margin-bottom: 48rpx;
+            }
+            .label {
+                font-weight: 400;
+                font-size: 24rpx;
+                color: #909399;
+                line-height: 24rpx;
+                margin-bottom: 24rpx;
+            }
+            .uni-input {
+                font-weight: 600;
+                font-size: 28rpx;
+                color: #303133;
+                line-height: 28rpx;
+                &.choose-input {
+                    position: relative;
+                    &::after {
+                        position: absolute;
+                        content: '';
+                        width: 28rpx;
+                        height: 28rpx;
+                        background-image: url('../../../assets/images/down-icon.png');
+                        background-size: cover;
+                        right: 0;
+                    }
+                }
+            }
+            .uni-textarea {
+                font-weight: 600;
+                height: 200rpx;
+                font-size: 28rpx;
+                color: #303133;
+                line-height: 28rpx;
+                box-sizing: border-box;
+            }
+        }
+    }
+    .lock-button {
+        width: 100%;
+    }
+</style>

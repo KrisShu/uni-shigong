@@ -1,0 +1,203 @@
+// http.ts
+import { useGlobalStore } from '@/stores';
+import { aesEncrypt } from '@/utils/crypt';
+import CryptoJS from 'crypto-js';
+import { getBizMsgByCode } from './code';
+import { version } from 'vue';
+
+const tip = (msg: string) => uni.showToast({ title: msg, icon: 'none', duration: 2000 });
+
+/* -------------------- 刷新 token 状态管理 -------------------- */
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+const requestQueue: Array<(token: string) => void> = [];
+
+function subscribe(callback: (token: string) => void) {
+    requestQueue.push(callback);
+}
+function publish(newToken: string) {
+    requestQueue.splice(0).forEach(fn => fn(newToken));
+}
+
+/** 刷新 token */
+export function refreshTokenWay(oldToken: string): Promise<string> {
+    const GlobalStore = useGlobalStore();
+    const baseURL = import.meta.env.VITE_SERVER_BASEURL as string;
+    if (isRefreshing && refreshPromise) return refreshPromise;
+
+    isRefreshing = true;
+    refreshPromise = new Promise<string>((resolve, reject) => {
+        uni.request({
+            url: `${baseURL}/login/refreshToken`,
+            method: 'POST',
+            header: { token: oldToken },
+            success: (res: any) => {
+                console.log('/login/refreshToken', res);
+                if (res.statusCode === 200 && res.data.code === 2000) {
+                    const newToken = res.data.data?.token || res.data?.token;
+                    const newRefreshToken = res.data.data?.refreshToken || res.data?.refreshToken;
+                    if (newToken) {
+                        GlobalStore.setToken(newToken, newRefreshToken);
+
+                        uni.setStorageSync('token', newToken);
+                        uni.setStorageSync('refreshToken', newRefreshToken);
+                        resolve(newToken);
+                    } else {
+                        reject(new Error('未返回新 token'));
+                    }
+                } else {
+                    reject(new Error(res.data?.msg || '刷新 token 失败'));
+                }
+            },
+            fail: reject,
+            complete: () => {
+                isRefreshing = false;
+                refreshPromise = null;
+            },
+        });
+    });
+    return refreshPromise;
+}
+
+/** 鉴权统一处理 */
+function needAuthorize(info: any): boolean {
+    const GlobalStore = useGlobalStore();
+    const code = info?.code;
+    if (code === 1001 || code === 1002 || code === 1003 || code === 1009) {
+        const bizMsg = getBizMsgByCode(code, info?.msg ?? '登录状态失效，请重新登录');
+        tip(bizMsg!);
+        GlobalStore.loginOut();
+        return true;
+    }
+    return false;
+}
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+interface HttpOptions<TData = any> {
+    url: string;
+    method?: HttpMethod;
+    data?: TData;
+    header?: Record<string, string>;
+    timeout?: number;
+    hidetips?: boolean;
+    encrypt?: boolean;
+}
+
+/* -------------------- 主请求封装 -------------------- */
+export function http<TResp = any, TData = any>(opts: HttpOptions<TData>) {
+    const GlobalStore = useGlobalStore();
+    const env = import.meta.env.VITE_NODE_ENV;
+    const baseURL = import.meta.env.VITE_SERVER_BASEURL as string;
+    const { url, method = 'GET', data, header, timeout = 20000, hidetips = false, encrypt = false } = opts;
+
+    const fullURL = baseURL.replace(/\/+$/, '') + '/' + url.replace(/^\/+/, '');
+
+    let payload: any = data;
+    if (encrypt && (method === 'POST' || method === 'PUT')) {
+        const iv = CryptoJS.lib.WordArray.random(16);
+        payload = {
+            cipherText: aesEncrypt(JSON.stringify(data ?? {}), iv),
+            base64Iv: iv.toString(CryptoJS.enc.Base64),
+            clearText: env === 'production' ? '' : data, // ⚠️ 生产环境不要传
+        };
+    }
+
+    const token = uni.getStorageSync('token') || '';
+    const finalHeader = {
+        'Content-Type': 'application/json',
+        token,
+        ...(header || {}),
+        version: import.meta.env.VITE_APP_VERSION,
+    };
+
+    // --- 封装一次请求函数，方便重试 ---
+    const doRequest = (overrideToken?: string) =>
+        new Promise<TResp>((resolve, reject) => {
+            uni.request({
+                url: fullURL,
+                method,
+                data: payload,
+                header: { ...finalHeader, token: overrideToken || token },
+                timeout,
+                success(res) {
+                    if (res.statusCode !== 200) {
+                        if (!hidetips) tip(`HTTP ${res.statusCode}`);
+                        reject({ code: res.statusCode, msg: 'HTTP_ERROR', data: res.data });
+                        return;
+                    }
+
+                    const body: any = res.data;
+
+                    if (body?.code === 2000) {
+                        resolve(body as TResp);
+                        return;
+                    }
+
+                    // ✅ token过期 -> 刷新逻辑
+                    if (body?.code === 1010) {
+                        console.log('[http] token 过期，开始刷新');
+                        const refreshToken = uni.getStorageSync('refreshToken');
+
+                        const retry = (newToken: string) => {
+                            console.log('[http] 使用新 token 重试请求');
+                            doRequest(newToken).then(resolve).catch(reject);
+                        };
+
+                        if (isRefreshing) {
+                            console.log('[http] 正在刷新，等待新 token...');
+                            subscribe(retry);
+                        } else {
+                            refreshTokenWay(refreshToken)
+                                .then((newToken: string) => {
+                                    publish(newToken);
+                                    retry(newToken);
+                                })
+                                .catch((err: any) => {
+                                    tip('登录状态失效，请重新登录');
+                                    GlobalStore.loginOut();
+                                    reject(err);
+                                });
+                        }
+                        return;
+                    }
+
+                    if (needAuthorize(body)) {
+                        reject(body);
+                        return;
+                    }
+
+                    if (!hidetips) {
+                        const bizMsg = getBizMsgByCode(body?.code, body?.msg ?? '请求失败，请重试');
+                        tip(bizMsg!);
+                    }
+                    reject(body);
+                },
+                fail(err) {
+                    if (!hidetips) {
+                        tip(err?.errMsg?.includes('timeout') ? '请求超时，请重试' : '请求失败，请重试');
+                    }
+                    reject(err);
+                },
+            });
+        });
+
+    return doRequest();
+}
+
+/* -------------------- 快捷方法 -------------------- */
+http.post = function <TResp = any, TData = any>(url: string, data?: TData, configs?: Partial<HttpOptions<TData>>) {
+    return http<TResp, TData>({ url, method: 'POST', data, encrypt: true, ...(configs || {}) });
+};
+http.get = function <TResp = any, TData = Record<string, any>>(
+    url: string,
+    data?: TData,
+    configs?: Partial<HttpOptions<TData>>,
+) {
+    return http<TResp, TData>({ url, method: 'GET', data, ...(configs || {}) });
+};
+http.delete = function <TResp = any, TData = any>(url: string, data?: TData, configs?: Partial<HttpOptions<TData>>) {
+    return http<TResp, TData>({ url, method: 'DELETE', data, ...(configs || {}) });
+};
+
+export default { http };

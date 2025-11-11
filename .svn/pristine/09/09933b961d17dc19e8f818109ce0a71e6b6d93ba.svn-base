@@ -1,0 +1,126 @@
+{
+    "pages": [
+        {
+            "path": "pages/login/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/index/proDetail/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/index/proDetail/pro-start/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/mine/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/todoList/abarbeitung",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/todoList/delay",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/index/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/index/proDetail/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/invoice/downLoadList",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/requirement/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/requirement/projectList",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/requirement/addEdit",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/packageCustomer/mine/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/officialWebsite/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        }
+    ],
+    "easycom": {
+        "autoscan": true,
+        "custom": {
+            "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+        }
+    },
+    "globalStyle": {
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "J&J",
+        "navigationBarBackgroundColor": "#F8F8F8",
+        "backgroundColor": "#F8F8F8"
+    },
+    "tabBar": {
+        "color": "#303133",
+        "selectedColor": "#E0AC58",
+        "backgroundColor": "#FFF",
+        "borderStyle": "black",
+        "list": [
+            {
+                "text": "%common.home%",
+                "pagePath": "pages/index/index",
+                "iconPath": "./static/tab-pro-normal.png",
+                "selectedIconPath": "./static/tab-pro-selected.png"
+            },
+            {
+                "text": "%mine.title%",
+                "pagePath": "pages/mine/index",
+                "iconPath": "./static/tab-me-normal.png",
+                "selectedIconPath": "./static/tab-me-selected.png"
+            }
+        ]
+    }
+}

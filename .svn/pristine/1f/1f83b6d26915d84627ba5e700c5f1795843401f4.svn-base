@@ -1,0 +1,168 @@
+<template>
+    <view class="project-satrt-page" :style="{ height: contentHeight + 'px' }">
+        <view class="pro-cap-box">
+            <view class="common-cap">
+                <!-- 示例：返回按钮 -->
+                <view class="pd-back common-back" @click="Back"> </view>
+                <text class="pd-title common-title">{{ projectTilte }}</text>
+            </view>
+            <view class="progress-chunk">
+                <view class="progress-wrap" :class="step >= 1 ? 'active' : ''">
+                    <view class="progress-num">01</view>
+                    <view class="progress-text">{{ $t('staff.pro.start_step_1') }}</view>
+                </view>
+                <view class="progress-wrap" :class="step >= 2 ? 'active' : ''">
+                    <view class="progress-num">02</view>
+                    <view class="progress-text">{{ $t('staff.pro.start_step_2') }}</view>
+                </view>
+                <view class="progress-wrap" :class="step >= 3 ? 'active' : ''">
+                    <view class="progress-num">03</view>
+                    <view class="progress-text">{{ $t('staff.pro.start_step_3') }}</view>
+                </view>
+            </view>
+        </view>
+        <view class="pro-bottom">
+            <oneStep :projectRecord="projectRecord" :projectId="currProjectId" v-show="step === 1" @next="nextTwo" />
+            <twoStep :projectRecord="projectRecord" :projectId="currProjectId" v-show="step === 2" @next="nextThree" />
+            <threeStep :projectId="currProjectId" v-show="step === 3" />
+        </view>
+    </view>
+</template>
+
+<script lang="ts" setup>
+    import { ref, reactive } from 'vue';
+    import oneStep from './oneStep.vue';
+    import twoStep from './twoStep.vue';
+    import threeStep from './threeStep.vue';
+    import { onLoad } from '@dcloudio/uni-app';
+    import API from '@/apis/index';
+    import { useSmartBack } from '@/hooks/useSmartBack';
+    import { useContentHeight } from '@/hooks/useContentHeight';
+    import { aesDecrypt } from '@/utils/crypt';
+
+    const { contentHeight } = useContentHeight(0); // 可自定义 tabBar 高度
+    const { smartBack } = useSmartBack();
+
+    const currProjectId = ref<string | number>('');
+    const projectTilte = ref('');
+    onLoad((options: any) => {
+        // console.log('接收参数', options);
+        currProjectId.value = Number(aesDecrypt(options.id));
+        projectTilte.value = aesDecrypt(options.title);
+        fetchStartProjectRecord();
+    });
+    const step = ref<number>(1);
+    const projectRecord = reactive<any>({});
+    const fetchStartProjectRecord = async () => {
+        try {
+            const res = await API.EMP_ProjectStartProjectRecord({ id: currProjectId.value });
+            Object.assign(projectRecord, res.data ?? {});
+            step.value = projectRecord.type;
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+
+    const Back = () => {
+        // // navigateTo({
+        // //     url: '/pages/index/proDetail/index',
+        // // });
+        // uni.navigateBack();
+        smartBack('/pages/index/proDetail/index');
+    };
+
+    const nextTwo = () => {
+        fetchStartProjectRecord();
+        step.value = 2;
+    };
+    const nextThree = () => {
+        step.value = 3;
+    };
+</script>
+
+<style lang="scss" scoped>
+    .project-satrt-page {
+        display: flex;
+        flex-direction: column;
+        height: 100vh; /* 让页面占满可视高度 */
+        overflow: hidden; /* 避免外层也滚动 */
+        background: #f4f6f8;
+        .pro-cap-box {
+            padding: 32rpx;
+            padding-bottom: 0;
+        }
+        .progress-chunk {
+            display: flex;
+            margin-bottom: 54rpx;
+            .progress-wrap {
+                display: flex;
+                align-items: center;
+                .progress-num {
+                    width: 40rpx;
+                    height: 40rpx;
+                    background: #ffffff;
+                    border-radius: 50%;
+                    text-align: center;
+                    line-height: 40rpx;
+                    font-size: 24rpx;
+                    color: #303133;
+                }
+                .progress-text {
+                    font-weight: 400;
+                    font-size: 28rpx;
+                    color: #909399;
+                    line-height: 28rpx;
+                    padding-left: 16rpx;
+                    padding-right: 44rpx;
+                    position: relative;
+                    &::after {
+                        content: '';
+                        display: inline-block;
+                        width: 32rpx;
+                        height: 32rpx;
+                        background-image: url('../../../../assets/images/right-normal.png');
+                        background-size: cover;
+                        position: absolute;
+                        right: 0rpx;
+                        top: -2rpx;
+                    }
+                }
+                & ~ .progress-wrap {
+                    margin-left: 16rpx;
+                }
+                &:last-of-type {
+                    .progress-text {
+                        padding-right: 0rpx;
+                    }
+                    .progress-text::after {
+                        display: none;
+                    }
+                }
+                &.active {
+                    .progress-num {
+                        background: #303133;
+                        color: #ffffff;
+                    }
+                    .progress-text {
+                        font-weight: 600;
+                        color: #303133;
+                        &::after {
+                            background-image: url('../../../../assets/images/right.png');
+                        }
+                    }
+                }
+            }
+        }
+        .pro-bottom {
+            flex: 1; /* 占满剩余空间 */
+            min-height: 0; /* 允许在 flex 容器里滚动（防止高度被撑死） */
+            /* 可选：iOS 惯性滚动更顺滑 */
+            // -webkit-overflow-scrolling: touch; // H5 中有效
+            background: #ffffff;
+            border-radius: 64rpx 64rpx 0rpx 0rpx;
+            padding: 32rpx;
+            overflow-y: auto;
+            position: relative;
+        }
+    }
+</style>

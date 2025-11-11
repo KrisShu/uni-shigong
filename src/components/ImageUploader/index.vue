@@ -16,15 +16,15 @@
 
 <script setup lang="ts">
     import { computed, ref, watch } from 'vue';
-    // import API from '@/apis/index';
+    import { i18n } from '@/main';
     import { useGlobalStore } from '@/stores/index';
+    import { refreshTokenWay } from '@/utils/request';
+    import { compressImageIfNeeded } from '@/utils/image'; // 路径按你放的位置改
+
     const store = useGlobalStore();
 
     // type UploadFn = (localPath: string) => Promise<string>; // 需返回线上URL或可用路径
 
-    const UPLOAD_URL = import.meta.env.VITE_SERVER_BASEURL
-        ? `${import.meta.env.VITE_SERVER_BASEURL.replace(/\/+$/, '')}/emp/common/fileUpload`
-        : 'http://192.168.110.208:8655/app/emp/common/fileUpload';
     // 统一把相对路径转绝对（若后端返回相对地址）
     const IMAGE_BASE = import.meta.env.VITE_IMAGE_BASEURL || '';
     // 自定义额外表单字段（可按需传）
@@ -33,54 +33,122 @@
         fileType: 1,
     };
 
-    // / ===== 上传实现 =====
-    function uploadOne(localPath: string, onProgress?: (p: number) => void): Promise<any> {
-        return new Promise((resolve, reject) => {
-            const task = uni.uploadFile({
-                url: UPLOAD_URL,
-                filePath: localPath,
-                name: 'file', // 后端接收字段名，常见: 'file' / 'files'
-                formData: extraFormData,
-                header: {
-                    Accept: 'application/json',
-                    // 覆盖/追加你的鉴权
-                    token: store?.token || '',
-                },
-                success: res => {
-                    try {
-                        if (res.statusCode !== 200) {
-                            return reject(`HTTP ${res.statusCode}`);
-                        }
-                        // 兼容后端返回字符串/JSON
-                        const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+    // 把 blob: URL 转 File；普通 string 原样返回
+    async function ensureUploadableFile(input: string | File): Promise<string | File> {
+        // #ifdef H5
+        if (typeof input !== 'string') {
+            return input; // 已是 File
+        }
+        if (input.startsWith('blob:')) {
+            const res = await fetch(input);
+            const blob = await res.blob();
+            return new File([blob], 'image.jpg', { type: blob.type || 'image/jpeg' });
+        }
+        // #endif
+        return input;
+    }
 
-                        // 根据你们后端约定提取地址：
-                        // 常见结构：{ code:2000, data:{filePath:''}, msg:'' }
-                        if (data?.code === 2000) {
-                            const raw = data.data.filePath;
-                            const finalUrl = String(raw || '').startsWith('http') ? raw : IMAGE_BASE + raw;
-                            if (!finalUrl) return reject('上传成功但未返回地址');
-                            resolve({ path: raw, url: finalUrl });
-
-                            // // 只返回图片的最终URL字符串
-                            // resolve(finalUrl);
-                        } else {
-                            reject(data?.msg || '上传失败');
-                        }
-                    } catch (e) {
-                        reject('返回解析失败');
+    function uploadOne(localPath: string | File, onProgress?: (p: number) => void): Promise<any> {
+        console.log('上传开始', localPath);
+        // 统一的“真正上传”函数
+        const doUpload = (token: string, filePathForUpload: string | File) => {
+            // #ifdef H5
+            // H5：如果是 File，用 XHR + FormData；如果是 string，走 uni.uploadFile
+            if (typeof filePathForUpload !== 'string') {
+                return new Promise<any>((resolve, reject) => {
+                    const form = new FormData();
+                    form.append('file', filePathForUpload as File, (filePathForUpload as File).name || 'image.jpg');
+                    if (extraFormData) {
+                        Object.keys(extraFormData).forEach(k => form.append(k, (extraFormData as any)[k]));
                     }
-                },
-                fail: err => reject(err?.errMsg || '上传失败'),
-            });
 
-            // 进度回调（可选）
-            task?.onProgressUpdate?.(prog => {
-                onProgress?.(prog.progress); // 0-100
-                // 你也可以在这里触发组件事件：emit('progress', { path: localPath, progress: prog.progress })
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', UPLOAD_URL, true);
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    if (token) xhr.setRequestHeader('token', token);
+
+                    xhr.upload.onprogress = e => {
+                        if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+                    };
+                    xhr.onload = () => {
+                        try {
+                            const data = JSON.parse(xhr.responseText || '{}');
+                            resolve(data);
+                        } catch {
+                            reject('返回解析失败');
+                        }
+                    };
+                    xhr.onerror = () => reject('上传失败');
+                    xhr.send(form);
+                });
+            }
+            // #endif
+
+            // 其余端 & H5(string 路径)：走 uni.uploadFile
+            return new Promise<any>((resolve, reject) => {
+                const task = uni.uploadFile({
+                    url: UPLOAD_URL,
+                    filePath: filePathForUpload as any, // 这里必须是字符串路径
+                    name: 'file',
+                    formData: extraFormData,
+                    header: { Accept: 'application/json', token: token || '' },
+                    success: res => {
+                        if (res.statusCode !== 200) return reject(`HTTP ${res.statusCode}`);
+                        try {
+                            const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+                            resolve(data);
+                        } catch {
+                            reject('返回解析失败');
+                        }
+                    },
+                    fail: err => reject(err?.errMsg || '上传失败'),
+                });
+                task?.onProgressUpdate?.(prog => onProgress?.(prog.progress));
             });
+        };
+
+        return new Promise(async (resolve, reject) => {
+            try {
+                // 兼容 H5 的 blob:/File
+                const filePathForUpload = await ensureUploadableFile(localPath as any);
+
+                console.log('准备上传的文件：', filePathForUpload);
+
+                const currentToken = uni.getStorageSync('token') || store?.token || '';
+                let data: any = await doUpload(currentToken, filePathForUpload);
+
+                if (data?.code === 2000) {
+                    const raw1 = data.data.filePath;
+                    const finalUrl = String(raw1 || '').startsWith('http') ? raw1 : IMAGE_BASE + raw1;
+                    if (!finalUrl) return reject('上传成功但未返回地址');
+                    return resolve({ path: raw1, url: finalUrl });
+                }
+
+                if (data?.code === 1010) {
+                    try {
+                        const refreshToken = uni.getStorageSync('refreshToken') || '';
+                        const newToken = await refreshTokenWay(refreshToken);
+                        data = await doUpload(newToken, filePathForUpload);
+                        if (data?.code === 2000) {
+                            const raw2 = data.data.filePath;
+                            const finalUrl = String(raw2 || '').startsWith('http') ? raw2 : IMAGE_BASE + raw2;
+                            if (!finalUrl) return reject('上传成功但未返回地址');
+                            return resolve({ path: raw2, url: finalUrl });
+                        } else {
+                            return reject(data?.msg || '上传失败');
+                        }
+                    } catch (err: any) {
+                        return reject(err?.message || String(err) || '刷新 token 失败');
+                    }
+                }
+
+                reject(data?.msg || '上传失败');
+            } catch (err: any) {
+                reject(err?.message || String(err) || '上传失败');
+            }
         });
     }
+
     interface Props {
         /** v-model 已上传图片URL列表 */
         modelValue: string[];
@@ -88,6 +156,8 @@
         maxCount?: number;
         /** 单文件大小上限(MB) */
         maxSizeMB?: number;
+        /** 单文件压缩触发阈值(MB)，超过才压缩 */
+        compressMaxSizeMB?: number;
         /** 允许的图片扩展名 */
         acceptExt?: string[]; // ['png','jpg','jpeg','webp','gif','bmp']
         /** 自定义上传函数（如果不传，则直接使用本地临时路径） */
@@ -98,24 +168,54 @@
         deletable?: boolean;
         /** 上传按钮文案 */
         addText?: string;
+        /** 可选平台 客户端 员工端 */
+        platform?: string;
     }
 
     const props = withDefaults(defineProps<Props>(), {
         modelValue: () => [],
         maxCount: 10,
-        maxSizeMB: 5,
-        acceptExt: () => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
+        maxSizeMB: 50,
+        compressMaxSizeMB: 1, // 默认 1MB
+        acceptExt: () => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'heif'],
         disabled: false,
         deletable: true,
-        addText: '上传图片',
+        addText: i18n.global.t('common.text.uploadImage'),
+        platform: 'emp',
     });
+
+    const UPLOAD_URL =
+        props.platform === 'emp'
+            ? `${import.meta.env.VITE_SERVER_BASEURL.replace(/\/+$/, '')}/emp/common/fileUpload`
+            : `${import.meta.env.VITE_SERVER_BASEURL.replace(/\/+$/, '')}/cus/common/fileUpload`;
 
     const emit = defineEmits<{
         (e: 'update:modelValue', v: string[]): void;
         (e: 'change', v: string[]): void;
         (e: 'exceed', payload: { over: number; max: number }): void;
         (e: 'error', msg: string): void;
+        (e: 'uploading', v: boolean): void; // 新增：通知父组件“正在上传”
+        (e: 'idle'): void; // 新增：通知父组件“上传已空闲”
     }>();
+
+    const uploadingCount = ref(0); // 新增
+    const isUploading = computed(() => uploadingCount.value > 0); // 新增
+
+    function waitForIdle(): Promise<void> {
+        if (!isUploading.value) return Promise.resolve();
+        return new Promise(resolve => {
+            const stop = watch(isUploading, v => {
+                if (!v) {
+                    stop();
+                    resolve();
+                }
+            });
+        });
+    }
+    defineExpose({ waitForIdle, isUploading });
+    watch(isUploading, v => {
+        v ? emit('uploading', true) : emit('idle');
+    });
 
     const innerList = ref<any[]>([...props.modelValue]);
 
@@ -149,6 +249,7 @@
             count: remain,
             sizeType: ['compressed'],
             sourceType: ['album', 'camera'],
+
             success: async res => {
                 type ImgFile = UniApp.ChooseImageSuccessCallbackResultFile | File;
 
@@ -162,6 +263,8 @@
                 const files = temp.slice(0, remain);
 
                 for (const f of files) {
+                    // --- 入队：开始上传（新增） ---
+
                     const localPath = (f as any).path || (f as any).tempFilePath || '';
                     const size = (f as any).size ?? 0;
                     const mime = (f as any).type as string | undefined;
@@ -169,22 +272,35 @@
 
                     // 类型校验
                     if (!isImageFile(ext, mime)) {
+                        uni.showToast({ title: i18n.global.t('common.upload.image.tip2'), icon: 'none' });
                         emit('error', `仅支持图片类型：${props.acceptExt.join('/')}`);
                         continue;
                     }
                     // 大小校验
                     if (size > maxBytes.value) {
+                        uni.showToast({
+                            title: `${i18n.global.t('common.upload.image.tip1')} ${props.maxSizeMB}MB`,
+                            icon: 'none',
+                        });
                         emit('error', `单个文件不能超过 ${props.maxSizeMB}MB`);
                         continue;
                     }
+                    uploadingCount.value++;
 
                     try {
-                        // let url = localPath;
+                        //压缩（当超过期望上限时才压）
+                        //    比如 props.compressMaxSizeMB = 5，超过 5MB 再压；否则也可以无条件压到更小
+                        const pathForUpload = await compressImageIfNeeded(localPath, size, {
+                            maxSizeMB: props.compressMaxSizeMB,
+                            maxWH: 1600, // 最大边限制，越小越省
+                            quality: 0.7, // 0–1（H5）/ 会换算到 80（非H5）
+                        });
+
                         //    这里写上传的逻辑
-                        const remoteUrlObj = await uploadOne(localPath, p => {
+                        const remoteUrlObj = await uploadOne(pathForUpload, p => {
                             // 这里能拿到单张图片的进度 p（0-100）
                             // 需要的话可以把进度存到一个 Map 里展示
-                            console.log('progress', p);
+                            // console.log('progress', p);
                         });
 
                         console.log('remoteUrl---------', remoteUrlObj);
@@ -192,13 +308,21 @@
                         innerList.value.push(remoteUrlObj);
                     } catch (e: any) {
                         emit('error', e?.message || String(e) || '上传失败');
+                    } finally {
+                        // --- 出队：上传完成 ---
+
+                        uploadingCount.value--;
+                        console.log('出队：上传完成', uploadingCount.value);
                     }
                 }
 
                 emit('update:modelValue', innerList.value);
                 emit('change', innerList.value);
             },
-            fail: err => emit('error', err?.errMsg || '选择图片失败'),
+            fail: err => {
+                console.error('选取图片fail', err);
+                emit('error', err?.message || String(err) || '上传失败');
+            },
         });
     }
 
@@ -209,8 +333,9 @@
     }
 
     function onPreview(i: number) {
+        const urls = innerList.value.map(x => x.url);
         uni.previewImage({
-            urls: innerList.value,
+            urls: urls,
             current: i,
         });
     }

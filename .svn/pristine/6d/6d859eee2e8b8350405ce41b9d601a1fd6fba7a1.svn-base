@@ -1,0 +1,101 @@
+// ...existing code...
+import { useGlobalStore } from '@/stores';
+import { refreshTokenWay } from '@/utils/request';
+
+const store = useGlobalStore();
+const BASEURL = import.meta.env.VITE_SERVER_BASEURL;
+
+/**
+ * 上传单张文件，返回服务器上的 URL
+ * @param localPath 本地临时路径
+ * @param options   { url, fieldName, headers, formData, imageBase }
+ */
+export function uploadOne(
+    localPath: string,
+    options?: {
+        url?: string;
+        fieldName?: string;
+        headers?: Record<string, string>;
+        formData?: Record<string, any>;
+        imageBase?: string; // 后端返回相对路径时用来补全域名
+    },
+): Promise<string> {
+    const {
+        url = `${BASEURL}/emp/common/fileUpload`,
+        fieldName = 'file',
+        headers = {},
+        formData = {},
+        imageBase = import.meta.env.VITE_IMAGE_BASEURL || '',
+    } = options || {};
+
+    // 封装一次上传（返回解析后的 data）
+    const doUpload = (token: string) =>
+        new Promise<any>((resolve, reject) => {
+            const task = uni.uploadFile({
+                url,
+                filePath: localPath,
+                name: fieldName,
+                formData,
+                header: {
+                    Accept: 'application/json',
+                    token: token || '',
+                    ...headers,
+                },
+                success: res => {
+                    try {
+                        if (res.statusCode !== 200) return reject({ __httpError: `HTTP ${res.statusCode}`, raw: res });
+                        const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+                        resolve(data);
+                    } catch (e) {
+                        reject({ __parseError: true, raw: res });
+                    }
+                },
+                fail: err => reject({ __fail: true, msg: err?.errMsg || '上传失败' }),
+            });
+
+            // 进度回调（可选）
+            task?.onProgressUpdate?.(prog => {
+                // noop here, parent caller can supply onProgress via options if needed
+            });
+        });
+
+    return new Promise(async (resolve, reject) => {
+        try {
+            const currentToken = uni.getStorageSync('token') || store?.token || '';
+            let data: any = await doUpload(currentToken);
+
+            // 成功
+            if (data?.code === 2000) {
+                const raw = data.data?.filePath ?? data.data;
+                const finalUrl = String(raw || '').startsWith('http') ? raw : imageBase + raw;
+                if (!finalUrl) return reject('上传成功但未返回地址');
+                return resolve(finalUrl);
+            }
+
+            // token 过期 -> 刷新并重试一次
+            if (data?.code === 1010) {
+                try {
+                    const refreshToken = uni.getStorageSync('refreshToken') || currentToken;
+                    const newToken = await refreshTokenWay(refreshToken);
+                    // 重试上传
+                    data = await doUpload(newToken);
+                    if (data?.code === 2000) {
+                        const raw = data.data?.filePath ?? data.data;
+                        const finalUrl = String(raw || '').startsWith('http') ? raw : imageBase + raw;
+                        if (!finalUrl) return reject('上传成功但未返回地址');
+                        return resolve(finalUrl);
+                    } else {
+                        return reject(data?.msg || '上传失败');
+                    }
+                } catch (err: any) {
+                    return reject(err?.message || String(err) || '刷新 token 失败');
+                }
+            }
+
+            // 其它情况
+            return reject(data?.msg || '上传失败');
+        } catch (err: any) {
+            return reject(err?.message || String(err) || '上传失败');
+        }
+    });
+}

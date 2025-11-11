@@ -1,0 +1,83 @@
+<template>
+    <view class="wrap-03">
+        <view class="required title">{{ $t('staff.pro.start_step_3_key') }}</view>
+        <ImageUploader
+            v-model="imgs"
+            :max-count="6"
+            :max-size-mb="5"
+            :accept-ext="['png', 'jpg', 'jpeg', 'webp']"
+            @error="onError"
+        />
+        <!-- 确认启动项目 -->
+
+        <LockButton class="progress-btn" :onClick="sureNext" />
+    </view>
+</template>
+
+<script lang="ts" setup>
+    import { ref } from 'vue';
+    import ImageUploader from '@/components/ImageUploader/index.vue';
+    import API from '@/apis/index';
+    import { i18n } from '@/main';
+    import { reLaunch } from '@/utils/navigate';
+    import LockButton from '@/components/LockButton/index.vue';
+
+    const props = defineProps<{
+        projectId: string | number;
+    }>();
+
+    // 已有图片（编辑态）
+    const imgs = ref<any[]>([]);
+
+    function onError(msg: string) {
+        uni.showToast({ title: msg, icon: 'none' });
+    }
+
+    const sureNext = async () => {
+        if (!imgs.value.length) {
+            uni.showToast({ title: '请上传图片', icon: 'none' });
+            return;
+        }
+        const confirmPathArr = imgs.value.map(item => item.path);
+        try {
+            const res = await API.EMP_ProjectConfirmConstructionSite({
+                id: props.projectId,
+                confirmPath: confirmPathArr.join(','),
+            });
+            console.log('res', res);
+            uni.showToast({ title: i18n.global.t('common.status.success'), icon: 'success' });
+            reLaunch({
+                url: '/pages/index/proDetail/index',
+                query: {
+                    id: props.projectId,
+                },
+            });
+        } catch (error) {
+            console.log('error', error);
+        }
+    };
+</script>
+
+<style lang="scss" scoped>
+    .wrap-03 {
+        .title {
+            font-weight: 600;
+            font-size: 32rpx;
+            color: #303133;
+            margin-bottom: 24rpx;
+        }
+        .progress-btn {
+            width: 90%;
+            background: #f7931e;
+            border-radius: 24rpx;
+            height: 88rpx;
+            line-height: 88rpx;
+            text-align: center;
+            font-weight: 600;
+            font-size: 28rpx;
+            color: #ffffff;
+            position: absolute;
+            bottom: 32rpx;
+        }
+    }
+</style>

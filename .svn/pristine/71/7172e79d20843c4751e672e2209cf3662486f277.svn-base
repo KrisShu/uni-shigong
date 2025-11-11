@@ -1,0 +1,464 @@
+<template>
+    <view class="page" :style="{ height: contentHeight + 'px' }">
+        <!-- 顶部固定区域 -->
+        <view class="header">
+            <view class="page-title">
+                <view>{{ $t('cus.requirement.title') }}</view>
+                <view class="release" @click="onRelease">
+                    <image class="release-icon" src="@/assets/images/zg_icon.png"></image>
+                    <view class="release-text">{{ $t('cus.requirement.FBXQ') }}</view>
+                </view>
+            </view>
+            <view class="search-bar" v-if="false">
+                <input
+                    placeholder-class="ph"
+                    type="text"
+                    :placeholder="$t('common.pro.placeholder')"
+                    v-model="keyword"
+                    @confirm="onSearch"
+                />
+                <image @click="onSearch" class="search-icon" src="@/assets/images/search.png"></image>
+            </view>
+        </view>
+
+        <!-- 滚动内容区域 -->
+        <scroll-view
+            class="scroll-content common-scroll-area"
+            :scroll-y="true"
+            :refresher-enabled="true"
+            :refresher-triggered="refreshing"
+            @refresherrefresh="onRefresh"
+            @scrolltolower="onLoadMore"
+            @scroll="onScroll"
+            refresher-background="transparent"
+            :scroll-top="lastScrollTop"
+        >
+            <!-- 加载中 -->
+            <view v-if="loading && page === 1" class="loading-box">
+                <text class="loading-icon">⏳</text>
+                <text class="loading-text">{{ $t('common.loading') }}</text>
+            </view>
+
+            <!-- 数据为空 -->
+            <EmptyBox v-else-if="!loading && projectList.length === 0" />
+
+            <!-- 需求列表 -->
+            <view v-else>
+                <view v-for="item in projectList" :key="item.id" class="project-card">
+                    <view class="project-id">
+                        {{ item.batchno }}
+                    </view>
+                    <view class="project-title">{{ item.address }} </view>
+                    <view class="content">
+                        <text class="label">{{ $t('cus.requirement.key_XMYS') }}：</text>
+                        <text class="value" v-show="item.budget">${{ item.budget }}</text>
+                    </view>
+                    <view class="btnbox" v-if="item.state == 1">
+                        <view class="btn btn_xgxq" @click="editFn(item)">{{ $t('cus.requirement.btn_XGXQ') }}</view>
+                        <view class="btn" @click="cancelFn(item)">{{ $t('cus.requirement.btn_CXXQ') }}</view>
+                    </view>
+                    <view class="btnbox" v-if="item.state == 2">
+                        <view @click="toProjectList(item)">{{ $t('cus.requirement.key_CKXM') }}</view>
+                    </view>
+
+                    <!-- 需求状态 -->
+                    <view class="project-box" :class="getStatusClass(item.state)?.class"></view>
+                    <view class="project-status">
+                        <text class="project-status-text">{{ getStatusClass(item.state)?.text }}</text>
+                    </view>
+                </view>
+
+                <!-- 底部加载状态 -->
+                <view class="loading-text">{{ loadingText }}</view>
+            </view>
+        </scroll-view>
+
+        <!-- 自定义 TabBar 固定底部 -->
+        <ClientTabBar />
+
+        <!-- 提示弹窗 -->
+        <uni-popup @touchmove.stop.prevent :animation="true" ref="tipsRef" type="center" :is-mask-click="false">
+            <view class="tips-popup">
+                <view class="close-popup"></view>
+                <view class="title">{{ $t('staff.pro.updateProgress_tip_label') }}</view>
+                <view class="text">{{ $t('cus.requirement.btn_CXXQ_tip') }}</view>
+
+                <view class="btn-box">
+                    <view class="btn cancel" @click="cancel">{{ $t('common.cancel') }}</view>
+                    <LockButton class="btn sure" :onClick="sure">{{ $t('common.text.QD') }}</LockButton>
+                </view>
+            </view>
+        </uni-popup>
+    </view>
+</template>
+
+<script lang="ts" setup>
+    import { ref, nextTick } from 'vue';
+    import { i18n } from '@/main';
+    import { navigateTo } from '@/utils/navigate';
+    import API from '@/apis/index';
+    import { useFilterStore } from '@/stores/filter';
+    import { onShow } from '@dcloudio/uni-app';
+    import EmptyBox from '@/components/EmptyBox/index.vue';
+    import ClientTabBar from '@/components/ClientTabBar/index.vue';
+    import LockButton from '@/components/LockButton/index.vue';
+    import { useContentHeight } from '@/hooks/useContentHeight';
+
+    const { contentHeight } = useContentHeight(0); // 可自定义 tabBar 高度
+
+    const filterStore = useFilterStore();
+
+    const keyword = ref('');
+    const projectList = ref<any[]>([]);
+    const page = ref(1);
+    const loadingText = ref('');
+    const refreshing = ref(false);
+    const loading = ref(false); //
+    const hasMore = ref(true); // 新增：是否还有更多数据
+    const tipsRef = ref<any>(null);
+    const clickrow = ref(null);
+
+    // 加载列表数据
+    const fetchProjects = async (reset = false) => {
+        if (loading.value) return; // ✅ 防止重复加载
+        loading.value = true;
+        loadingText.value = i18n.global.t('common.loading');
+
+        if (reset) {
+            page.value = 1;
+            projectList.value = [];
+            hasMore.value = true; // 重置时认为还有更多，直到服务端返回判断
+        }
+
+        try {
+            const res = await API.CUS_RequirementList({
+                name: keyword.value,
+                pageNo: page.value, //page.value
+            });
+            const newData = res.data.list || [];
+
+            if (newData.length < res.data.pageSize) {
+                console.log('没有更多数据了');
+                hasMore.value = false;
+                loadingText.value = i18n.global.t('common.no-more');
+            } else {
+                console.log('上拉加载更多');
+                hasMore.value = true;
+                loadingText.value = i18n.global.t('common.release');
+            }
+            if (reset) {
+                projectList.value = newData;
+            } else {
+                projectList.value.push(...newData);
+            }
+
+            console.log('列表结果res', res);
+        } catch (error) {
+            console.log('列表结果error', error);
+        } finally {
+            refreshing.value = false;
+            loading.value = false;
+        }
+    };
+    // 发布需求
+    const onRelease = (item: any) => {
+        navigateTo({
+            url: '/pages/packageCustomer/requirement/addEdit',
+        });
+    };
+    // 修改需求
+    const editFn = (item: any) => {
+        navigateTo({
+            url: '/pages/packageCustomer/requirement/addEdit',
+            query: {
+                id: item.id,
+            },
+        });
+    };
+    // 撤销需求
+    const cancelFn = (item: any) => {
+        clickrow.value = item;
+        tipsRef.value.open();
+    };
+    const cancel = () => {
+        tipsRef.value.close();
+    };
+    const sure = async () => {
+        try {
+            const res = await API.CUS_CancelDemand({
+                id: clickrow.value.id,
+            });
+            console.log(res);
+            tipsRef.value.close();
+
+            uni.showToast({
+                title: i18n.global.t('common.status.success'),
+                icon: 'none',
+            });
+            fetchProjects(true);
+        } catch (error) {}
+    };
+    // 查看项目
+    const toProjectList = (item: any) => {
+        navigateTo({
+            url: '/pages/packageCustomer/requirement/projectList',
+            query: {
+                projectIds: item.projectIds,
+            },
+        });
+    };
+
+    const getStatusClass = (status: number) => {
+        switch (status) {
+            case 0:
+                return {
+                    class: 'status-cancel',
+                    text: i18n.global.t('cus.requirement.state_YCX'),
+                }; //已撤销
+            case 1:
+                //待受理
+                return {
+                    class: 'status-wait',
+                    text: i18n.global.t('cus.requirement.state_DSL'),
+                };
+            case 2:
+                //已受理
+                return {
+                    class: 'status-has',
+                    text: i18n.global.t('cus.requirement.state_YSL'),
+                };
+        }
+    };
+
+    const onSearch = () => {
+        filterStore.set({
+            empIndexKeyword: keyword.value,
+        });
+        fetchProjects(true);
+    };
+
+    const onRefresh = async () => {
+        refreshing.value = true;
+        await fetchProjects(true);
+    };
+
+    const onLoadMore = () => {
+        if (!hasMore.value || loading.value) return;
+        page.value++;
+        fetchProjects();
+    };
+
+    const lastScrollTop = ref(0);
+    const onScroll = (e: any) => {
+        lastScrollTop.value = e.detail.scrollTop;
+    };
+
+    async function restoreAndFetch() {
+        console.log('restoreAndFetch', filterStore.empIndexActiveTab);
+        // 先恢复筛选（你的逻辑）
+        keyword.value = filterStore.empIndexKeyword ?? '';
+
+        // 再拉列表（会触发 DOM 生成）
+        await fetchProjects(true);
+
+        // 等一帧渲染完成后再恢复滚动
+        nextTick(() => {
+            // 强制触发变更：先置 -1 再置目标值（同值赋值在 H5 不触发）
+            const y = filterStore.scrollTop || 0;
+            lastScrollTop.value = -1;
+            requestAnimationFrame(() => (lastScrollTop.value = y));
+        });
+    }
+
+    // 初始加载
+
+    onShow(() => {
+        restoreAndFetch();
+    });
+</script>
+
+<style lang="scss" scoped>
+    .page {
+        padding-bottom: 120rpx; /* 给自定义tabbar留出空间 */
+        height: 100vh;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .page-title {
+        font-weight: 600;
+        font-size: 36rpx;
+        color: #303133;
+        line-height: 50rpx;
+        background: #f4f6f8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        .release {
+            font-size: 24rpx;
+            font-weight: normal;
+            display: flex;
+            align-items: center;
+        }
+        .release-icon {
+            width: 30rpx;
+            height: 30rpx;
+            flex-shrink: 0;
+            margin-right: 8rpx;
+        }
+        .release-text {
+            padding-bottom: 2rpx;
+        }
+    }
+
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .search-bar {
+        width: 100%;
+        height: 88rpx;
+        background: #ffffff;
+        border-radius: 24rpx;
+        padding: 24rpx 30rpx 24rpx;
+        box-sizing: border-box;
+        margin-bottom: 32rpx;
+        margin-top: 24rpx;
+        display: flex;
+        align-items: center;
+
+        input {
+            background: #ffffff;
+            border-radius: 24rpx;
+            font-size: 28rpx;
+            flex: 1 0 0;
+        }
+        .search-icon {
+            width: 34rpx;
+            height: 34rpx;
+            flex-shrink: 0;
+            margin-left: 28rpx;
+        }
+    }
+
+    .scroll-content {
+        margin-top: 32rpx;
+        .project-card {
+            .project-id {
+            }
+            .content {
+                font-size: 28rpx;
+                color: #909399;
+                margin-top: 26rpx;
+            }
+            .btnbox {
+                margin-top: 26rpx;
+                border-top: 1rpx solid #e4e4e4;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding-top: 26rpx;
+                .btn {
+                    width: 50%;
+                    text-align: center;
+                    font-size: 28rpx;
+                }
+                .btn_xgxq {
+                    border-right: 1rpx solid #e4e4e4;
+                }
+            }
+            .project-box {
+                width: 242rpx;
+                height: 82rpx;
+                background-color: #303133;
+                z-index: 1;
+                position: absolute;
+                top: -4rpx;
+                right: -4rpx;
+                &.status-cancel {
+                    background-color: #e4e4e4;
+                }
+                &.status-wait {
+                    background-color: #303133;
+                }
+                &.status-has {
+                    background-color: #f7931e;
+                }
+            }
+            .project-status {
+                position: absolute;
+                top: 0;
+                right: 0;
+                font-size: 26rpx;
+                color: #999;
+                width: 260rpx;
+                height: 82rpx;
+                // background-color: #303133;
+                background-image: url('@/assets/images/index-state-bg.png');
+                background-size: 100% 100%;
+                z-index: 2;
+
+                .project-status-text {
+                    display: block;
+                    text-align: center;
+                    font-weight: 400;
+                    font-size: 28rpx;
+                    color: #ffffff;
+                    margin-top: 6rpx;
+                    margin-left: 52rpx;
+                }
+            }
+        }
+    }
+    .tips-popup {
+        background: #ffffff;
+        border-radius: 24rpx;
+        overflow: hidden;
+        padding: 48rpx 32rpx;
+        position: relative;
+        width: 80vw;
+        // margin: auto;
+        .close-popup {
+            position: absolute;
+            width: 40rpx;
+            height: 40rpx;
+            background-image: url('@/assets/images/icon-close-pop.png');
+            background-size: cover;
+            right: 32rpx;
+            top: -72rpx;
+        }
+        .title {
+            font-weight: 600;
+            font-size: 32rpx;
+            color: #303133;
+            line-height: 32rpx;
+            margin-bottom: 48rpx;
+            text-align: center;
+        }
+        .text {
+            font-weight: 400;
+            font-size: 28rpx;
+            color: #909399;
+            text-align: center;
+        }
+        .btn-box {
+            display: flex;
+            gap: 24rpx;
+            margin-top: 48rpx;
+            .btn {
+                flex: 1;
+                min-width: 0;
+                height: 88rpx;
+                background: #f7931e;
+                border-radius: 24rpx;
+                text-align: center;
+                line-height: 88rpx;
+                color: #ffffff;
+                &.cancel {
+                    background: #e4e4e4;
+                }
+            }
+        }
+    }
+</style>

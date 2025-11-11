@@ -1,0 +1,13 @@
+import commApis from './commApis';
+import projectApis from './projectApis';
+import mineApis from './mineApis';
+import cusProjectApis from './projectApis/cus_index';
+import cusRequirement from './requirementApis/cus_index';
+
+export default {
+    ...commApis,
+    ...projectApis,
+    ...mineApis,
+    ...cusProjectApis,
+    ...cusRequirement,
+};

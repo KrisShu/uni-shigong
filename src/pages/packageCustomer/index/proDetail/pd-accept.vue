@@ -90,14 +90,14 @@
                     : '';
             });
 
-            if (newData.length < res.data.pageSize) {
-                console.log('没有更多数据了');
-                hasMore.value = false;
-                loadingText.value = i18n.global.t('common.no-more');
-            } else {
+            if (page.value < res.data.pages) {
                 console.log('上拉加载更多');
                 hasMore.value = true;
                 loadingText.value = i18n.global.t('common.release');
+            } else {
+                console.log('没有更多数据了');
+                hasMore.value = false;
+                loadingText.value = i18n.global.t('common.no-more');
             }
             acceptanceList.value.push(...newData);
 

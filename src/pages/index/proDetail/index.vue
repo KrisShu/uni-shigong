@@ -8,7 +8,8 @@
             </view>
 
             <!-- 项目整体进度卡片 -->
-            <view class="pd-progress-card">
+            <!-- <transition name="pd-card-slide" :duration="{ enter: 200, leave: 200 }"> -->
+            <view v-if="isShowPanel" class="pd-progress-card">
                 <view class="pd-progress-card__title">{{ $t('staff.pro.progress') }}</view>
                 <view class="pd-progress-card2">
                     <ProgressBar
@@ -52,6 +53,7 @@
 
                 <!-- 操作按钮 -->
             </view>
+            <!-- </transition> -->
 
             <!-- Tabs 切换 -->
 
@@ -84,7 +86,10 @@
             <PdConstruct
                 v-show="projectDetails.status != 0 && activeTab === tabs[2].value"
                 :projectId="currProjectId"
+                @handleScroll="handleScroll"
+                ref="PdConstructRef"
             />
+            <!-- :resetScrollKey="resetScrollKey" -->
 
             <!-- Tab 内容：验收 -->
             <PdAccept v-show="projectDetails.status != 0 && activeTab === tabs[3].value" :projectId="currProjectId" />
@@ -258,8 +263,18 @@
     };
 
     const activeTab = ref(tabs[0].value);
+    const PdConstructRef = ref<InstanceType<typeof PdConstruct> | null>(null);
+    // const resetScrollKey = ref(0); // 用于通知子组件重置滚动位置
     const changeTab = (item: any) => {
+        if (item.value === activeTab.value) return;
         activeTab.value = item.value;
+
+        // // 2）通知子组件「请回到顶部」
+        // resetScrollKey.value++;
+
+        PdConstructRef.value?.forceTop?.();
+
+        isShowPanel.value = true;
     };
 
     const currProgress = ref<number | null>(null);
@@ -295,6 +310,14 @@
     };
     // 更新整体项目进度保存
     const submitUpdateProgress = async () => {
+        if (currProgress.value === 0) {
+            uni.showToast({
+                title: i18n.global.t('staff.pro.update_tip'),
+                icon: 'none',
+            });
+            return;
+        }
+
         if (!currProgress.value) {
             uni.showToast({
                 title: i18n.global.t('common.placeholder'),
@@ -371,6 +394,12 @@
         }
     };
 
+    const isShowPanel = ref(true);
+    const handleScroll = (v: boolean) => {
+        console.log('父组件收到滚动事件', v);
+        isShowPanel.value = v;
+    };
+
     // onLoad((options: any) => {
     //     console.log('详情页onLoad接收参数', options);
     // });
@@ -391,6 +420,26 @@
         top: 0;
         z-index: 10;
     }
+    /* 进入 & 离开时都启用过渡 */
+    .pd-card-slide-enter-active,
+    .pd-card-slide-leave-active {
+        transition: all 0.2s ease-out;
+    }
+
+    /* 刚进入时的起始状态 / 离开结束时的状态 */
+    .pd-card-slide-enter-from,
+    .pd-card-slide-leave-to {
+        opacity: 0;
+        transform: translateY(-20rpx); // 往上淡出
+    }
+
+    /* 进入结束 / 离开开始时的状态（默认样式） */
+    .pd-card-slide-enter-to,
+    .pd-card-slide-leave-from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
     .pd-progress-card {
         width: 100%;
         box-sizing: border-box;
@@ -398,6 +447,7 @@
         border-radius: 24rpx;
         padding: 24rpx;
         margin-bottom: 32rpx;
+        transition: transform 0.2s ease, opacity 0.2s ease;
 
         .pd-progress-card__title {
             font-weight: 600;

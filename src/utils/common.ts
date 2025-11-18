@@ -39,6 +39,24 @@ export function debounce<F extends AnyFunction>(
     };
 }
 
+/**
+ * 节流函数（TS 版本）
+ * @param fn - 要节流的函数
+ * @param delay - 延迟时间（毫秒）
+ * @returns 返回包装后的节流函数
+ */
+
+export function throttle<F extends AnyFunction>(fn: F, delay = 100) {
+    let timer: number | null = null;
+    return function (this: ThisParameterType<F>, ...args: Parameters<F>) {
+        if (timer) return;
+        timer = window.setTimeout(() => {
+            fn.apply(this, args);
+            timer = null;
+        }, delay);
+    };
+}
+
 export function getNowTimeStr(type: string = 'yyyy-MM-dd HH:mm:ss'): string {
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');

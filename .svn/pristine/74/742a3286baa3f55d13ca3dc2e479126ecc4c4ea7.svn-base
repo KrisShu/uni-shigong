@@ -24,9 +24,8 @@
             :enhanced="true"
             :enable-back-to-top="true"
             @scrolltolower="loadMore"
-            @scrolltoupper="onScrollToUpper"
-            @scroll="onScroll"
-            :scroll-top="scrollTop"
+            @scroll="handleScroll"
+            @scrolltoupper="handleScrolltoupper"
         >
             <!-- 加载中 -->
             <view v-if="loading && page === 1" class="loading-box">
@@ -161,13 +160,11 @@
     import ImageUploader from '@/components/ImageUploader/index.vue';
     import EmptyBox from '@/components/EmptyBox/index.vue';
     import ImagePreview from '@/components/ImagePreview/index.vue';
-    import { useScrollListener } from '@/hooks/useScrollListener';
 
     const BASEURL = import.meta.env.VITE_IMAGE_BASEURL;
 
     const props = defineProps<{
         projectId: string | number;
-        // resetScrollKey: number;
     }>();
 
     const getStatusClass = (status: number): any => {
@@ -340,14 +337,14 @@
                 item.buildPath = item.buildPath ? item.buildPath.split(',').map((item: any) => BASEURL + item) : '';
             });
 
-            if (page.value < res.data.pages) {
-                console.log('上拉加载更多');
-                hasMore.value = true;
-                loadingText.value = i18n.global.t('common.release');
-            } else {
+            if (newData.length < res.data.pageSize) {
                 console.log('没有更多数据了');
                 hasMore.value = false;
                 loadingText.value = i18n.global.t('common.no-more');
+            } else {
+                console.log('上拉加载更多');
+                hasMore.value = true;
+                loadingText.value = i18n.global.t('common.release');
             }
 
             if (reset) {
@@ -373,24 +370,17 @@
     const emits = defineEmits<{
         (e: 'handleScroll', value: boolean): void;
     }>();
-    const { scrollTop, onScroll, onScrollToUpper, forceTop } = useScrollListener({
-        topLeave: 200,
-        onTopChange(isAtTop) {
-            // 抛给父组件
-            emits('handleScroll', isAtTop);
-        },
-    });
+    const handleScroll = (e: any) => {
+        console.log('scroll', e);
+        const scrollTop = e.detail.scrollTop;
 
-    // 暴露给父组件调用
-    defineExpose({
-        forceTop,
-    });
-
-    // 还需要支持父组件强制让子列表回到顶部：
-    // watch(
-    //     () => props.resetScrollKey,
-    //     () => resetToTop(),
-    // );
+        if (scrollTop > 10) {
+            emits('handleScroll', true);
+        }
+    };
+    const handleScrolltoupper = (e: any) => {
+        console.log('scrolltoupper', e);
+    };
 
     getDevice();
     fetchData();

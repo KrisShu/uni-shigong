@@ -162,6 +162,7 @@
                 hasMore.value = false;
                 loadingText.value = i18n.global.t('common.no-more');
             }
+
             if (reset) {
                 projectList.value = newData;
             } else {

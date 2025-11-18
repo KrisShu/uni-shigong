@@ -23,6 +23,9 @@
             :enhanced="true"
             :enable-back-to-top="true"
             @scrolltolower="loadMore"
+            @scrolltoupper="onScrollToUpper"
+            @scroll="onScroll"
+            :scroll-top="scrollTop"
         >
             <!-- 加载中 -->
             <view v-if="loading && page === 1" class="loading-box">
@@ -80,6 +83,7 @@
     import { ref, computed, watch, onMounted, reactive } from 'vue';
     import EmptyBox from '@/components/EmptyBox/index.vue';
     import ImagePreview from '@/components/ImagePreview/index.vue';
+    import { useScrollListener } from '@/hooks/useScrollListener';
 
     const BASEURL = import.meta.env.VITE_IMAGE_BASEURL;
 
@@ -138,14 +142,14 @@
                 item.buildPath = item.buildPath ? item.buildPath.split(',').map((item: any) => BASEURL + item) : '';
             });
 
-            if (newData.length < res.data.pageSize) {
-                console.log('没有更多数据了');
-                hasMore.value = false;
-                loadingText.value = i18n.global.t('common.no-more');
-            } else {
+            if (page.value < res.data.pages) {
                 console.log('上拉加载更多');
                 hasMore.value = true;
                 loadingText.value = i18n.global.t('common.release');
+            } else {
+                console.log('没有更多数据了');
+                hasMore.value = false;
+                loadingText.value = i18n.global.t('common.no-more');
             }
 
             if (reset) {
@@ -167,6 +171,23 @@
         page.value++;
         fetchData();
     };
+
+    const emits = defineEmits<{
+        (e: 'handleScroll', value: boolean): void;
+    }>();
+    const { scrollTop, onScroll, onScrollToUpper, resetToTop } = useScrollListener({
+        topLeave: 200,
+        onTopChange(isAtTop) {
+            // 抛给父组件
+            emits('handleScroll', isAtTop);
+        },
+    });
+
+    // 还需要支持父组件强制让子列表回到顶部：
+    watch(
+        () => props.resetScrollKey,
+        () => resetToTop(),
+    );
 
     fetchData();
 </script>

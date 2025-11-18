@@ -24,8 +24,8 @@
             :enhanced="true"
             :enable-back-to-top="true"
             @scrolltolower="loadMore"
-            @scrolltoupper="onScrollToUpper"
-            @scroll="onScroll"
+            @scrolltoupper="handleScrollToUpper"
+            @scroll="handleScroll"
             :scroll-top="scrollTop"
         >
             <!-- 加载中 -->
@@ -161,13 +161,13 @@
     import ImageUploader from '@/components/ImageUploader/index.vue';
     import EmptyBox from '@/components/EmptyBox/index.vue';
     import ImagePreview from '@/components/ImagePreview/index.vue';
-    import { useScrollListener } from '@/hooks/useScrollListener';
+    import { throttle } from '@/utils/common';
 
     const BASEURL = import.meta.env.VITE_IMAGE_BASEURL;
 
     const props = defineProps<{
         projectId: string | number;
-        // resetScrollKey: number;
+        resetScrollKey: number;
     }>();
 
     const getStatusClass = (status: number): any => {
@@ -340,14 +340,14 @@
                 item.buildPath = item.buildPath ? item.buildPath.split(',').map((item: any) => BASEURL + item) : '';
             });
 
-            if (page.value < res.data.pages) {
-                console.log('上拉加载更多');
-                hasMore.value = true;
-                loadingText.value = i18n.global.t('common.release');
-            } else {
+            if (newData.length < res.data.pageSize) {
                 console.log('没有更多数据了');
                 hasMore.value = false;
                 loadingText.value = i18n.global.t('common.no-more');
+            } else {
+                console.log('上拉加载更多');
+                hasMore.value = true;
+                loadingText.value = i18n.global.t('common.release');
             }
 
             if (reset) {
@@ -369,28 +369,77 @@
         page.value++;
         fetchData();
     };
+    // 供 scroll-view 绑定的 scrollTop
+    const scrollTop = ref(0);
+    // 监听 resetScrollKey，每次变化就回到顶部
+    watch(
+        () => props.resetScrollKey,
+        () => {
+            // 关键：赋一个新值，触发 scroll-view 回到顶部
+
+            // 关键：改成一个“不同”的值，触发 scroll-view 响应 uni-app的问题
+            scrollTop.value = scrollTop.value === 0 ? 1 : 0;
+        },
+    );
+
+    const TOP_ENTER = 10; // 回到顶部的阈值
+    const TOP_LEAVE = 200; // 离开顶部的阈值
+
+    let lastState = true; // true = 在顶部（显示卡片）
+    let lastScrollTopRaw = 0; // 上一次原始 scrollTop
+    let ignoreUntil = 0; // 在这个时间戳之前的 scroll 事件直接忽略
 
     const emits = defineEmits<{
         (e: 'handleScroll', value: boolean): void;
     }>();
-    const { scrollTop, onScroll, onScrollToUpper, forceTop } = useScrollListener({
-        topLeave: 200,
-        onTopChange(isAtTop) {
-            // 抛给父组件
-            emits('handleScroll', isAtTop);
-        },
-    });
 
-    // 暴露给父组件调用
-    defineExpose({
-        forceTop,
-    });
+    const handleScroll = throttle((e: any) => {
+        const now = Date.now();
+        const scrollTop = e.detail?.scrollTop ?? 0;
 
-    // 还需要支持父组件强制让子列表回到顶部：
-    // watch(
-    //     () => props.resetScrollKey,
-    //     () => resetToTop(),
-    // );
+        // 1）短时间内忽略：用于屏蔽因为布局变化导致的“伪滚动”
+        if (now < ignoreUntil) {
+            // console.log('scroll ignored by ignoreUntil');
+            return;
+        }
+
+        // 2）判断滚动方向
+        const direction = scrollTop > lastScrollTopRaw ? 'down' : 'up';
+        lastScrollTopRaw = scrollTop;
+        console.log('handleScroll', now, scrollTop);
+        console.log('direction', direction);
+
+        let newState = lastState;
+
+        // 在顶部 & 向下滚 & 超过离开阈值 => 隐藏卡片
+        if (lastState && direction === 'down' && scrollTop > TOP_LEAVE) {
+            newState = false;
+        }
+
+        // 不在顶部 & 向上滚 & 小于回到顶部阈值 => 显示卡片
+        else if (!lastState && direction === 'up' && scrollTop < TOP_ENTER) {
+            newState = true;
+            console.log('scroll back to top');
+        }
+
+        // 3）状态有变化才抛事件
+        if (newState !== lastState) {
+            lastState = newState;
+            emits('handleScroll', newState);
+
+            // ⭐ 关键点：状态切换后，接下来的 120ms 内忽略 scroll 事件
+            // 用来“吃掉”因 v-if / v-show 改布局带来的那几次 scroll
+            ignoreUntil = now + 120;
+        }
+    }, 80);
+
+    // 滚到顶部：只负责“回到顶部”
+    const handleScrollToUpper = () => {
+        if (!lastState) {
+            lastState = true;
+            emits('handleScroll', true); // 告诉父组件显示
+        }
+    };
 
     getDevice();
     fetchData();

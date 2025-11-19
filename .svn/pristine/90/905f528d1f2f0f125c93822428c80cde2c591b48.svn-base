@@ -1,5 +1,0 @@
-{
-    "nuxt.isNuxtApp": false,
-    "vue-i18n.i18nPaths": "src\\locale",
-    "i18n-ally.keystyle": "nested"
-}

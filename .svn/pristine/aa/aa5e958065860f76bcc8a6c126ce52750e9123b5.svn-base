@@ -1,9 +1,0 @@
-import commApis from './commApis';
-import projectApis from './projectApis';
-import mineApis from './mineApis';
-
-export default {
-    ...commApis,
-    ...projectApis,
-    ...mineApis,
-};

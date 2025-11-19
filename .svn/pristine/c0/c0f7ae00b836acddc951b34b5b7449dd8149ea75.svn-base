@@ -1,9 +1,0 @@
-import { http } from '@/utils/request';
-// 我的项目 列表 接口
-export function CUS_ProjectList(data: any) {
-    return http.post('/cus/project/list', data);
-}
-
-export default {
-    CUS_ProjectList,
-};

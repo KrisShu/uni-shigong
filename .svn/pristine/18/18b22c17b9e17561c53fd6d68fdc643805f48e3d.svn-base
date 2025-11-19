@@ -1,8 +1,0 @@
-# 变量必须以 VITE_ 为前缀才能暴露给外部读取
-NODE_ENV = 'development'
-# 是否去除console 和 debugger
-VITE_NODE_ENV = 'development'
-VITE_DELETE_CONSOLE = false
-VITE_APP_PUBLIC_BASE = '/shigongApp/'
-VITE_SERVER_BASEURL = 'http://47.75.253.20:8779/app'
-VITE_IMAGE_BASEURL = 'http://47.75.253.20:8779/'

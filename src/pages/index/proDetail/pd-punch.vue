@@ -3,7 +3,7 @@
     <view class="pd-punch">
         <view class="pd-punch-wrap">
             <!-- 签到 -->
-            <view class="punch-wrap" :class="{ disabled: signIned }" @click="handleSignIn">
+            <view class="punch-wrap" @click="handleSignIn">
                 <view class="title-text">{{ $t('staff.pro.clock_in.key_SGQD') }}</view>
                 <view class="clock-time"> （{{ signInTime }}）</view>
                 <view class="punch-btn">
@@ -11,7 +11,7 @@
                 </view>
             </view>
             <!-- 签退 -->
-            <view class="punch-wrap" :class="{ disabled: signOuted }" @click="handleSignOut">
+            <view class="punch-wrap" @click="handleSignOut">
                 <view class="title-text">{{ $t('staff.pro.clock_in.key_SGQT') }}</view>
                 <view class="clock-time"> （{{ signOutTime }}）</view>
                 <view class="punch-btn">
@@ -64,7 +64,6 @@
                     </view>
                 </view>
             </scroll-view>
-            <!-- <view class="history-wrap"> </view> -->
         </view>
     </view>
 </template>
@@ -73,7 +72,7 @@
     import { ref, onMounted, onUnmounted, reactive, watch } from 'vue';
     import API from '@/apis/index';
     import { i18n } from '@/main';
-    import { takePhoto, validateImage } from '@/utils/takePhoto';
+    import { takePhoto } from '@/utils/takePhoto';
     import { uploadOne } from '@/utils/uploader';
     import ImagePreview from '@/components/ImagePreview/index.vue';
     import EmptyBox from '@/components/EmptyBox/index.vue';
@@ -187,14 +186,16 @@
     }
 
     const updateClock = () => {
-        if (!signIned.value) signInTime.value = getNowTimeStr('HH:mm:ss');
-        if (!signOuted.value) signOutTime.value = getNowTimeStr('HH:mm:ss');
+        // if (!signIned.value)
+        signInTime.value = getNowTimeStr('HH:mm:ss');
+        // if (!signOuted.value)
+        signOutTime.value = getNowTimeStr('HH:mm:ss');
     };
-
+    const uploadUrl = `${import.meta.env.VITE_SERVER_BASEURL.replace(/\/+$/, '')}/emp/common/fileUpload`;
     const handleSignIn = async () => {
         console.log('handleSignIn---signIned', signIned.value);
         console.log('handleSignIn---busy', busy.value);
-        if (signIned.value || busy.value) return;
+        if (busy.value) return;
 
         try {
             // 1) 拍照
@@ -209,7 +210,7 @@
 
             // 3) 上传
             uni.showLoading({ title: i18n.global.t('common.text.SCZ'), mask: true });
-            const remoteUrl = await uploadOne(photo.path); // 如需自定义 headers 等，传第二个参数
+            const remoteUrl = await uploadOne(photo.path, { uploadUrl });
             uni.hideLoading();
             console.log('remoteUrl---------', remoteUrl);
 
@@ -219,7 +220,7 @@
             await API.EMP_ProjectConstructionSignIn({
                 id: props.projectId,
                 clockTime: clockFull,
-                imgPath: remoteUrl,
+                imgPath: remoteUrl.path,
             });
 
             // 5)本地状态
@@ -238,9 +239,8 @@
 
         console.log('signIned', signInTime.value, signInTime_compelete.value);
     };
-
     const handleSignOut = async () => {
-        if (signOuted.value || busy.value) return;
+        if (busy.value) return;
 
         try {
             // 1) 拍照
@@ -254,7 +254,7 @@
 
             // 3) 上传
             uni.showLoading({ title: i18n.global.t('common.text.SCZ'), mask: true });
-            const remoteUrl = await uploadOne(photo.path); // 如需自定义 headers 等，传第二个参数
+            const remoteUrl = await uploadOne(photo.path, { uploadUrl });
             uni.hideLoading();
             console.log('remoteUrl---------', remoteUrl);
 
@@ -264,7 +264,7 @@
             await API.EMP_ProjectConstructionSignOut({
                 id: props.projectId,
                 clockTime: clockFull,
-                imgPath: remoteUrl,
+                imgPath: remoteUrl.path,
             });
 
             // 5)本地状态

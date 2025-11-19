@@ -67,15 +67,21 @@
 
 <script setup lang="ts">
     import { computed, ref, watch, onMounted } from 'vue';
-    // import sysfillbg from '@/assets/images/sys-fill-bg.png';
-    // import workerfillbg from '@/assets/images/worker-fill-bg.png';
 
-    const props = defineProps<{
-        systemProgress: number; // 0-100
-        workerProgress: number; // 0-100
-        barWidth?: string;
-        showLegend?: boolean;
-    }>();
+    const props = withDefaults(
+        defineProps<{
+            systemProgress: number; // 0-100
+            workerProgress: number; // 0-100
+            barWidth?: string;
+            showLegend?: boolean;
+        }>(),
+        {
+            systemProgress: 0,
+            workerProgress: 0,
+            barWidth: '100%',
+            showLegend: true,
+        },
+    );
 
     const barWidth = props.barWidth || '100%';
 

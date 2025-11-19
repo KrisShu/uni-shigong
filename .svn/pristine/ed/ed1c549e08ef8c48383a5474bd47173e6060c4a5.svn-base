@@ -13,9 +13,6 @@
                     zIndex: 1,
                 }"
             >
-                <!-- <view v-show="fastProgress" class="pp-pill fast-fill" :style="{ background: fastColor }">
-                    {{ fastProgress }}%
-                </view> -->
             </view>
             <!-- 顶层进度条（进度较慢的） -->
             <view
@@ -30,23 +27,36 @@
                     left: 0,
                 }"
             >
-                <view
-                    v-show="workerProgress < systemProgress"
-                    class="pp-pill slow-fill"
-                    :style="{ background: slowColor }"
-                >
-                    {{ slowProgress }}%
-                </view>
             </view>
         </view>
+        <!-- 实际进度小于计划进度 气泡 -->
+        <view
+            v-show="workerProgress < systemProgress"
+            class="pp-pill slow-fill"
+            :style="{ background: slowColor, left: slowLeftPercent + '%' }"
+        >
+            <view class="slow-pan"> {{ slowProgress }}%</view>
+            <view class="fast-pan"> {{ fastProgress }}%</view>
+        </view>
+        <!-- 实际进度大于等于计划进度 气泡 -->
+        <view
+            v-show="workerProgress && workerProgress >= systemProgress"
+            class="pp-pill fast-fill"
+            :style="{
+                left: fastLeftPercent + '%',
+                background: fastColor,
+            }"
+        >
+            {{ fastProgress }}%
+        </view>
         <!-- 图例 -->
-        <view class="pp-legend" v-show="showLegend">
-            <view class="pp-legend__item">
+        <view class="pp-legend">
+            <view class="pp-legend__item" v-show="showLegend">
                 <view class="pp-dot pp-dot--actual"></view>
                 <!-- <text>实际施工进度</text> -->
                 <text>{{ $t('staff.pro.actual_progress') }}</text>
             </view>
-            <view class="pp-legend__item">
+            <view class="pp-legend__item" v-show="showLegend">
                 <view class="pp-dot pp-dot--plan"></view>
                 <!-- <text>计划施工进度</text> -->
                 <text>{{ $t('staff.pro.plan_progress') }}</text>
@@ -57,15 +67,21 @@
 
 <script setup lang="ts">
     import { computed, ref, watch, onMounted } from 'vue';
-    // import sysfillbg from '@/assets/images/sys-fill-bg.png';
-    // import workerfillbg from '@/assets/images/worker-fill-bg.png';
 
-    const props = defineProps<{
-        systemProgress: number; // 0-100
-        workerProgress: number; // 0-100
-        barWidth?: string;
-        showLegend?: boolean;
-    }>();
+    const props = withDefaults(
+        defineProps<{
+            systemProgress: number; // 0-100
+            workerProgress: number; // 0-100
+            barWidth?: string;
+            showLegend?: boolean;
+        }>(),
+        {
+            systemProgress: 0,
+            workerProgress: 0,
+            barWidth: '100%',
+            showLegend: true,
+        },
+    );
 
     const barWidth = props.barWidth || '100%';
 
@@ -76,6 +92,10 @@
 
     const fastColor = computed(() => (props.systemProgress > props.workerProgress ? systemColor : workerColor)); // 蓝色或绿色
     const slowColor = computed(() => (props.systemProgress <= props.workerProgress ? systemColor : workerColor));
+
+    const MIN_MARKER = 8;
+    const MAX_MARKER = 92;
+    const clampMarker = (v: number) => Math.min(MAX_MARKER, Math.max(MIN_MARKER, v));
 
     // 动画进度
     const animatedFastProgress = ref(0);
@@ -92,6 +112,8 @@
         };
         step();
     };
+    const fastLeftPercent = computed(() => clampMarker(animatedFastProgress.value) - 10);
+    const slowLeftPercent = computed(() => clampMarker(animatedSlowProgress.value) - 10);
 
     onMounted(() => {
         animateProgress(fastProgress.value, animatedFastProgress);
@@ -128,6 +150,7 @@
     .pp-wrap {
         position: relative;
         padding-top: 20rpx;
+        // background-color: saddlebrown;
         // padding-bottom: 20rpx;
     }
 
@@ -157,27 +180,65 @@
 
     /* 百分比胶囊 */
     .pp-pill {
-        position: absolute;
-
-        line-height: 38rpx;
-        height: 38rpx;
-        // width: 56rpx;
-        width: fit-content;
-        padding: 0 6rpx;
-        background-size: cover;
-        text-align: center;
         color: #fff;
         font-size: 20rpx;
 
-        right: 0rpx;
-
         &.fast-fill {
-            top: -42rpx; /* 胶囊在轨道之上（按UI） */
-            border-radius: 10rpx 10rpx 10rpx 0rpx;
+            bottom: 34rpx; /* 胶囊在轨道之上（按UI） */
+            border-radius: 16rpx;
+            position: absolute;
+            padding: 0 8rpx;
+            line-height: 32rpx;
+            height: 32rpx;
+
+            width: fit-content;
+            text-align: center;
+            &::before {
+                content: '';
+                position: absolute;
+                right: 40%;
+                top: -6rpx;
+                width: 0;
+                height: 0;
+                border-left: 8rpx solid transparent;
+                border-right: 8rpx solid transparent;
+                border-bottom: 8rpx solid #f7931e; /* 方向=上（指向下方） */
+                z-index: 1;
+            }
         }
         &.slow-fill {
-            bottom: -42rpx;
-            border-radius: 0rpx 10rpx 10rpx 10rpx;
+            bottom: 34rpx;
+            // border-radius: 0rpx 10rpx 10rpx 10rpx;
+            height: 32rpx;
+            background: #f7931e;
+            line-height: 32rpx;
+            padding-left: 8rpx;
+            position: absolute;
+            border-radius: 16rpx;
+            display: flex;
+            align-items: center;
+            &::before {
+                content: '';
+                position: absolute;
+                right: 40%;
+                top: -8rpx;
+                width: 0;
+                height: 0;
+                border-left: 8rpx solid transparent;
+                border-right: 8rpx solid transparent;
+                border-bottom: 8rpx solid #f7931e; /* 方向=上（指向下方） */
+                z-index: 1;
+            }
+            .slow-pan {
+                padding-right: 8rpx;
+            }
+            .fast-pan {
+                height: 30rpx;
+                line-height: 30rpx;
+                padding: 0 8rpx;
+                background: #f5cea0;
+                border-radius: 16rpx;
+            }
         }
     }
 
@@ -196,7 +257,8 @@
         display: flex;
         gap: 100rpx;
         align-items: center;
-        margin-top: 44rpx;
+        margin-top: 60rpx;
+        height: 26rpx;
         .pp-legend__item {
             display: flex;
             align-items: center;

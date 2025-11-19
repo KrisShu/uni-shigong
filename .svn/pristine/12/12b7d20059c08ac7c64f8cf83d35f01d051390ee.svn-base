@@ -19,7 +19,7 @@
     import { i18n } from '@/main';
     import { useGlobalStore } from '@/stores/index';
     import { refreshTokenWay } from '@/utils/request';
-    import { compressImageIfNeeded } from '@/utils/image';
+    import { compressImageIfNeeded } from '@/utils/image'; // 路径按你放的位置改
 
     const store = useGlobalStore();
 
@@ -33,7 +33,6 @@
         fileType: 1,
     };
 
-    // ✅ ① 放在同文件顶部或 uploadOne 同级位置
     // 把 blob: URL 转 File；普通 string 原样返回
     async function ensureUploadableFile(input: string | File): Promise<string | File> {
         // #ifdef H5
@@ -177,6 +176,7 @@
         modelValue: () => [],
         maxCount: 10,
         maxSizeMB: 50,
+        compressMaxSizeMB: 1, // 默认 1MB
         acceptExt: () => ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'heif'],
         disabled: false,
         deletable: true,
@@ -291,7 +291,7 @@
                         //压缩（当超过期望上限时才压）
                         //    比如 props.compressMaxSizeMB = 5，超过 5MB 再压；否则也可以无条件压到更小
                         const pathForUpload = await compressImageIfNeeded(localPath, size, {
-                            maxSizeMB: props.compressMaxSizeMB, // 例如 5
+                            maxSizeMB: props.compressMaxSizeMB,
                             maxWH: 1600, // 最大边限制，越小越省
                             quality: 0.7, // 0–1（H5）/ 会换算到 80（非H5）
                         });

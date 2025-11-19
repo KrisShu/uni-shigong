@@ -303,6 +303,7 @@
             });
             return;
         }
+
         if (!currProgress.value) {
             uni.showToast({
                 title: i18n.global.t('common.placeholder'),

@@ -19,7 +19,7 @@
     import { i18n } from '@/main';
     import { useGlobalStore } from '@/stores/index';
     import { refreshTokenWay } from '@/utils/request';
-    import { compressImageIfNeeded } from '@/utils/image';
+    import { compressImageIfNeeded } from '@/utils/image'; // 路径按你放的位置改
 
     const store = useGlobalStore();
 

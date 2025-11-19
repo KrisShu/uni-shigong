@@ -84,7 +84,6 @@
             <PdConstruct
                 v-show="projectDetails.status != 0 && activeTab === tabs[2].value"
                 :projectId="currProjectId"
-                @handleScroll="handleScroll"
             />
 
             <!-- Tab 内容：验收 -->
@@ -377,11 +376,6 @@
         } catch (error) {
             console.log('error', error);
         }
-    };
-
-    const isShowPanel = ref(true);
-    const handleScroll = (v: boolean) => {
-        console.log('父组件收到滚动事件', v);
     };
 
     // onLoad((options: any) => {

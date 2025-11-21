@@ -1,45 +1,68 @@
 <template>
     <view class="pd-section pd-info">
-        <view class="pd-card__title">{{ projectDetails.name }}</view>
-        <view class="pd-card__address">{{ projectDetails.address }}</view>
-        <!-- 项目卡片 -->
+        <!-- <view class="pd-card__title">{{ projectDetails.name }}</view> -->
+
         <view class="pd-card">
-            <!-- 使用车辆 -->
-            <view class="pd-field">
-                <view class="pd-field__label">{{ $t('common.pro.key_car') }}：</view>
-                <view class="pd-field__chips">
-                    <view class="pd-chip">{{ projectDetails.hardwareNames }}</view>
-                </view>
+            <view class="pd-address">{{ projectDetails.address }}</view>
+            <view class="pd-company pd-infos" v-if="projectDetails.companyName">
+                <view class="pd-infos-label">{{ $t('common.pro.Key_company') }}:</view>
+                <view class="pd-infos-value">{{ projectDetails.companyName }}</view>
             </view>
-            <!-- 参与人 -->
-            <view class="pd-field">
-                <view class="pd-field__label">{{ $t('staff.pro.key_person') }}：</view>
-
-                <view class="pd-field__chips people-list flex">
-                    <!-- 人员列表的第一个为项目发起人 -->
-                    <view v-for="(people, p) in workerNameArr" class="people-item" :class="p === 0 ? 'leader' : ''">
-                        {{ people }}
-                    </view>
-                </view>
+            <view class="pd-contact pd-infos" v-if="projectDetails.companyName">
+                <view class="pd-infos-label">{{ $t('common.pro.Key_contact') }}:</view>
+                <view class="pd-infos-value">{{ projectDetails.companyName }}</view>
             </view>
-            <!-- 预计工期 -->
-            <view class="pd-field">
-                <view class="pd-field__label">{{ $t('common.pro.key_date') }}：</view>
-                <view class="pd-field__value">{{ projectDetails.period }}{{ $t('common.unit.day') }}</view>
-            </view>
-
-            <!-- 项目勘察图 -->
-            <view class="pd-field" v-if="images.length">
-                <view class="pd-field__label">{{ $t('common.pro.key_image') }}：</view>
-                <ImagePreview :images="images" />
+            <view class="pd-phone pd-infos" v-if="projectDetails.companyName">
+                <view class="pd-infos-label">{{ $t('common.pro.Key_phone') }}:</view>
+                <view class="pd-infos-value">{{ projectDetails.companyName }}</view>
             </view>
         </view>
-        <!-- 安全注意事项 -->
-        <view class="pd-card2">
-            <view class="pd-card__title">{{ $t('common.pro.key_tip') }}</view>
+        <!-- 项目卡片 -->
+        <view class="pd-card">
+            <view class="bg-wrap">
+                <!-- 使用车辆 -->
+                <view class="pd-field">
+                    <view class="pd-field__label">{{ $t('common.pro.key_car') }}：</view>
+                    <view class="pd-field__chips">
+                        <view class="pd-chip">{{ projectDetails.hardwareNames }}</view>
+                    </view>
+                </view>
+                <!-- 参与人 -->
+                <view class="pd-field" style="flex-direction: column">
+                    <view class="pd-field__label">{{ $t('staff.pro.key_person') }}：</view>
 
-            <view class="pd-list">
-                <view class="pd-list__item">{{ projectDetails.security }}</view>
+                    <view class="people-list">
+                        <view v-for="(people, p) in workerNameArr" class="people-item">
+                            <image class="people-item__avatar" :src="people.avatar" mode="aspectFill"></image>
+                            <view class="people-item__name">{{ people }}</view>
+                        </view>
+                    </view>
+                </view>
+                <!-- 开工时间 -->
+                <view class="pd-field">
+                    <view class="pd-field__label">{{ $t('common.pro.Key_KGSJ') }}：</view>
+                    <view class="pd-field__value">{{ projectDetails.period }}</view>
+                </view>
+                <!-- 预计工期 -->
+                <view class="pd-field">
+                    <view class="pd-field__label">{{ $t('common.pro.key_date') }}：</view>
+                    <view class="pd-field__value">{{ projectDetails.period }}{{ $t('common.unit.day') }}</view>
+                </view>
+
+                <!-- 项目勘察图 -->
+                <view class="pd-field" v-if="images.length">
+                    <view class="pd-field__label">{{ $t('common.pro.key_image') }}：</view>
+                    <ImagePreview :images="images" />
+                </view>
+            </view>
+
+            <!-- 安全注意事项 -->
+            <view class="pd-card2">
+                <view class="pd-card__title">{{ $t('common.pro.key_tip') }}</view>
+
+                <view class="pd-list">
+                    <view class="pd-list__item">{{ projectDetails.security }}</view>
+                </view>
             </view>
         </view>
     </view>
@@ -77,9 +100,9 @@
 
 <style lang="scss" scoped>
     .pd-info {
-        background: #ffffff;
-        border-radius: 24rpx;
-        padding: 24rpx;
+        // background: #ffffff;
+        // border-radius: 24rpx;
+        // padding: 24rpx;
         max-height: 100%;
         overflow-y: auto;
         box-sizing: border-box;
@@ -90,14 +113,14 @@
             line-height: 32rpx;
             margin-bottom: 20rpx;
         }
-        .pd-card__address {
-            font-weight: 400;
-            font-size: 28rpx;
-            color: #909399;
-            line-height: 36rpx;
+        .pd-address {
+            font-weight: 600;
+            font-size: 32rpx;
+            color: #303133;
+            line-height: 32rpx;
             display: flex;
             align-items: center;
-            margin-bottom: 24rpx;
+
             padding-left: 50rpx;
             position: relative;
             &::before {
@@ -111,10 +134,29 @@
                 left: 0rpx;
             }
         }
+        .pd-infos {
+            display: flex;
+            align-items: center;
+            font-weight: 400;
+            font-size: 28rpx;
+            color: #909399;
+            line-height: 32rpx;
+            margin-top: 22rpx;
+
+            &.pd-company {
+                margin-top: 30rpx;
+            }
+        }
+
         .pd-card {
-            background: #f4f6f8;
+            background: #ffffff;
             border-radius: 24rpx;
             padding: 24rpx;
+            .bg-wrap {
+                background: #f4f6f8;
+                border-radius: 24rpx;
+                padding: 24rpx;
+            }
             .pd-field {
                 display: flex;
                 font-weight: 400;
@@ -133,33 +175,29 @@
                     .pd-chip {
                         flex: 1;
                     }
+                }
 
-                    &.people-list {
-                        gap: 8rpx;
-                        flex-wrap: wrap;
-                        .people-item {
-                            height: 40rpx;
-                            line-height: 40rpx;
-                            padding: 0 8rpx;
-                            background: #ffffff;
-                            border-radius: 8rpx;
+                .people-list {
+                    gap: 8rpx;
+                    flex-wrap: wrap;
+                    .people-item {
+                        display: flex;
+                        align-items: center;
+                        margin-top: 16rpx;
+
+                        .people-item__avatar {
+                            width: 96rpx;
+                            height: 96rpx;
+                            border-radius: 50%;
+                            overflow: hidden;
+                            margin-right: 12rpx;
+                            background: #4790d9;
+                        }
+                        .people-item__name {
+                            font-weight: 400;
                             font-size: 24rpx;
-                            &.leader {
-                                position: relative;
-                                padding-left: 38rpx;
-                                &::before {
-                                    content: '';
-                                    display: inline-block;
-                                    width: 24rpx;
-                                    height: 22rpx;
-                                    background: url('@/assets/images/leader.png');
-                                    background-size: cover;
-                                    position: absolute;
-                                    left: 8rpx;
-                                    top: 50%;
-                                    transform: translateY(-50%);
-                                }
-                            }
+                            color: #909399;
+                            line-height: 24rpx;
                         }
                     }
                 }

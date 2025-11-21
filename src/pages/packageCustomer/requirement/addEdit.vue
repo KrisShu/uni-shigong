@@ -84,7 +84,7 @@
                             <view class="uni-input choose-input">{{ workDate }}</view>
                         </picker> -->
 
-                        <uni-datetime-picker v-model="workDate">
+                        <uni-datetime-picker hide-second v-model="workDate">
                             <view class="uni-input choose-input">{{ workDate }}</view>
                         </uni-datetime-picker>
                     </view>

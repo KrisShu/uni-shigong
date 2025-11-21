@@ -241,6 +241,8 @@
                     height: cropHeight,
                     destWidth: cropWidth,
                     destHeight: cropHeight,
+                    fileType: 'jpg',
+                    quality: 0.7,
                     success: async res => {
                         const remoteUrlObj = await uploadOne(res.tempFilePath, { uploadUrl: UPLOAD_URL });
                         console.log('remoteUrlObj', remoteUrlObj);

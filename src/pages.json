@@ -29,6 +29,18 @@
             }
         },
         {
+            "path": "pages/task/index",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/task/addEdit",
+            "style": {
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/mine/index",
             "style": {
                 "navigationStyle": "custom"
@@ -122,6 +134,12 @@
             {
                 "text": "%common.home%",
                 "pagePath": "pages/index/index",
+                "iconPath": "./static/tab-pro-normal.png",
+                "selectedIconPath": "./static/tab-pro-selected.png"
+            },
+            {
+                "text": "%staff.task.title%",
+                "pagePath": "pages/task/index",
                 "iconPath": "./static/tab-pro-normal.png",
                 "selectedIconPath": "./static/tab-pro-selected.png"
             },

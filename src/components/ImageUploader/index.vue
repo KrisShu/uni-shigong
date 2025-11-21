@@ -277,6 +277,8 @@
                     const mime = (f as any).type as string | undefined;
                     const ext = getExtByPath(localPath);
 
+                    console.log('ext', ext);
+
                     // 类型校验
                     if (!isImageFile(ext, mime)) {
                         uni.showToast({ title: i18n.global.t('common.upload.image.tip2'), icon: 'none' });

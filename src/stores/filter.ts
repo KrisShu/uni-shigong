@@ -14,6 +14,11 @@ export const useFilterStore = defineStore('listFilter', {
         scrollTop: 0, //当前滚动到 的位置
         ZG_scrollTop: 0, // 整改页面的滚动位置
 
+        taskKeyword: '', //任务列表搜索关键字
+        taskPageNo: 1,
+        taskActiveTab: '',
+        taskScrollTop: 0,
+
         ts: 0, // 时间戳
     }),
     actions: {

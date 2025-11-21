@@ -38,7 +38,7 @@
             </view>
         </view>
 
-        <view @click="TEST">测试</view>
+        <!-- <view @click="TEST">测试</view> -->
 
         <!-- 修改密码 弹窗 -->
         <uni-popup @touchmove.stop.prevent :animation="true" ref="upDateRef" type="bottom" :is-mask-click="false">

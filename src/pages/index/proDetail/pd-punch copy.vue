@@ -1,6 +1,30 @@
 <!-- 打卡tab页 -->
 <template>
     <view class="pd-punch">
+        <view class="attendance-card">
+            <view class="card-content">
+                <view class="column-box">
+                    <text class="label-text">上班</text>
+                    <text class="time-text">{{ clockInTime || '--:--:--' }}</text>
+                    <view class="btn btn-disabled">已签到</view>
+                </view>
+
+                <view class="divider-wrap">
+                    <view class="triangle"></view>
+                    <view class="vertical-line"></view>
+                </view>
+
+                <view class="column-box">
+                    <text class="label-text">下班</text>
+                    <text class="time-text">{{ clockOutTime || '--:--:--' }}</text>
+                    <view class="btn btn-active" @click="handleClockOut">签退</view>
+                </view>
+            </view>
+
+            <view class="card-footer">
+                <text class="tip-text">温馨提示：6分钟内不能重复签到/签退</text>
+            </view>
+        </view>
         <view class="pd-punch-wrap">
             <!-- 签到 -->
             <view class="punch-wrap" @click="handleSignIn">
@@ -18,9 +42,6 @@
                     {{ $t('staff.pro.clock_in.key_QT') }}
                 </view>
             </view>
-        </view>
-        <view class="pd-punch-tip">
-            {{ $t('staff.pro.clock_in.WXTS') }}
         </view>
         <!-- 历史打卡记录 -->
         <view class="pd-punch-history">
@@ -45,10 +66,9 @@
                 <view v-else class="pd-punch-history__item" v-for="(item, index) in historyList" :key="index">
                     <view class="flex j-between a-center">
                         <view class="pd-punch-history__time">{{ item.clockDate }}</view>
-                        <view class="pd-punch-history__h">{{ item.clockTime }}</view>
-                    </view>
-                    <view class="pd-punch-history__people">
-                        {{ $t('common.pro.clock_in.key_DKR') }}：{{ item.workerName }}
+                        <view class="pd-punch-history__people">
+                            {{ $t('common.pro.clock_in.key_DKR') }}：{{ item.workerName }}
+                        </view>
                     </view>
                     <view class="flex j-between punch-images">
                         <view class="punch-image" v-for="(his, i) in item.workerRecordsList" :key="i">
@@ -62,7 +82,6 @@
                             <view class="pd-images" v-if="his.imgPath">
                                 <view class="pd-image-box">
                                     <ImagePreview :images="BASEURL + his.imgPath" />
-                                    <view class="pd-punch-time">12:12</view>
                                 </view>
                             </view>
                         </view>
@@ -314,7 +333,6 @@
         .pd-punch-wrap {
             display: flex;
             gap: 24rpx;
-
             width: 100%;
             box-sizing: border-box;
             .punch-wrap {
@@ -326,7 +344,7 @@
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
-
+                margin-bottom: 32rpx;
                 .title-text {
                     font-weight: 400;
                     font-size: 24rpx;
@@ -360,14 +378,6 @@
                     background: #f7931e;
                 }
             }
-        }
-        .pd-punch-tip {
-            font-weight: 400;
-            font-size: 24rpx;
-            color: #909399;
-            line-height: 33rpx;
-            margin-bottom: 30rpx;
-            margin-top: 16rpx;
         }
         .pd-punch-history {
             flex: 1;
@@ -412,21 +422,11 @@
                             top: 36%;
                         }
                     }
-                    .pd-punch-history__h {
-                        font-weight: 400;
-                        font-size: 28rpx;
-                        color: #909399;
-                        line-height: 28rpx;
-                        &.red {
-                            color: #fa2b19;
-                        }
-                    }
                     .pd-punch-history__people {
                         font-weight: 400;
                         font-size: 24rpx;
                         color: #909399;
                         line-height: 24rpx;
-                        margin-top: 16rpx;
                     }
                     .punch-images {
                         margin-top: 24rpx;
@@ -438,32 +438,15 @@
                                 color: #303133;
                                 line-height: 28rpx;
                             }
-                            .pd-images {
-                                .pd-image-box {
-                                    width: 154rpx;
-                                    height: 154rpx;
-                                    border-radius: 8rpx;
-                                    overflow: hidden;
-                                    background: #f4f6f8;
-                                    position: relative;
-                                    .pd-image {
-                                        width: 100%;
-                                        height: 100%;
-                                    }
-                                    .pd-punch-time {
-                                        position: absolute;
-                                        bottom: 20rpx;
-                                        left: 50%;
-                                        transform: translateX(-50%);
-                                        height: 32rpx;
-                                        border-radius: 18rpx;
-                                        padding: 0 18rpx;
-                                        background: rgba(0, 0, 0, 0.4);
-                                        font-weight: 400;
-                                        font-size: 24rpx;
-                                        color: #ffffff;
-                                        line-height: 32rpx;
-                                    }
+                            .pd-image-box {
+                                width: 154rpx;
+                                height: 154rpx;
+                                border-radius: 8rpx;
+                                overflow: hidden;
+                                background: #f4f6f8;
+                                .pd-image {
+                                    width: 100%;
+                                    height: 100%;
                                 }
                             }
                         }

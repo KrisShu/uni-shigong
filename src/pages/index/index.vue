@@ -102,8 +102,6 @@
     import { onLoad, onShow, onPageScroll } from '@dcloudio/uni-app';
     import EmptyBox from '@/components/EmptyBox/index.vue';
 
-    const isRequest = ref(false);
-
     const filterStore = useFilterStore();
 
     const { contentHeight } = useContentHeight(50); // 可自定义 tabBar 高度
@@ -182,7 +180,6 @@
             }
 
             console.log('列表结果res', res);
-            isRequest.value = true;
         } catch (error) {
             console.log('列表结果error', error);
         } finally {
@@ -263,15 +260,6 @@
     };
 
     const goToDetail = (item: any) => {
-        // console.log('goToDetail', item);
-        // const state = encodeURIComponent(
-        //     JSON.stringify({
-        //         tab: filterStore.empIndexActiveTab,
-        //         kw: filterStore.empIndexKeyword,
-        //         ts: Date.now(),
-        //     }),
-        // );
-
         filterStore.set({ scrollTop: lastScrollTop.value });
         navigateTo({
             url: '/pages/index/proDetail/index',
